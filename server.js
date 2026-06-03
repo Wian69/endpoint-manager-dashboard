@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const app = express();
@@ -10,29 +9,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize SQLite database
-const db = new sqlite3.Database(':memory:'); // Using memory for simplicity in this POC. In production, use a persistent file.
+// ==========================================
+// IN-MEMORY DATABASE (Replaces SQLite)
+// ==========================================
+// Since this is a lightweight dashboard, we don't need a heavy native database like SQLite.
+// Memory objects are perfect and avoid GLIBC deployment errors on services like Render.
 
-db.serialize(() => {
-    // Devices table
-    db.run(`CREATE TABLE devices (
-        hostname TEXT PRIMARY KEY,
-        os_version TEXT,
-        last_seen DATETIME,
-        pending_windows_updates INTEGER,
-        pending_app_updates INTEGER,
-        update_list TEXT
-    )`);
-
-    // Jobs table for queuing commands
-    db.run(`CREATE TABLE jobs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        hostname TEXT,
-        command TEXT,
-        status TEXT, -- 'pending', 'completed', 'failed'
-        created_at DATETIME
-    )`);
-});
+const devicesDB = new Map(); // Key: hostname, Value: device object
+const jobsDB = []; // Array of job objects
+let nextJobId = 1;
 
 // ==========================================
 // AGENT ROUTES (Called by the endpoints)
@@ -46,40 +31,44 @@ app.post('/api/agent/checkin', (req, res) => {
 
     const now = new Date().toISOString();
     
-    db.run(`INSERT INTO devices (hostname, os_version, last_seen, pending_windows_updates, pending_app_updates, update_list)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(hostname) DO UPDATE SET 
-            os_version=excluded.os_version,
-            last_seen=excluded.last_seen,
-            pending_windows_updates=excluded.pending_windows_updates,
-            pending_app_updates=excluded.pending_app_updates,
-            update_list=excluded.update_list`, 
-    [hostname, osVersion, now, pendingWindowsUpdates, pendingAppUpdates, JSON.stringify(updateList || [])], 
-    function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
+    // Update or insert device
+    devicesDB.set(hostname, {
+        hostname,
+        os_version: osVersion,
+        last_seen: now,
+        pending_windows_updates: pendingWindowsUpdates,
+        pending_app_updates: pendingAppUpdates,
+        update_list: updateList || [] // Already an array, no JSON.stringify needed
     });
+
+    res.json({ success: true });
 });
 
 // Agent fetch pending jobs
 app.get('/api/agent/jobs/:hostname', (req, res) => {
     const hostname = req.params.hostname;
-    db.get(`SELECT * FROM jobs WHERE hostname = ? AND status = 'pending' ORDER BY created_at ASC LIMIT 1`, [hostname], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.json({ job: null });
-        
-        // Mark as in-progress if we want, but for simplicity, the agent will report back
-        res.json({ job: row });
-    });
+    
+    // Find the oldest pending job for this hostname
+    const job = jobsDB.find(j => j.hostname === hostname && j.status === 'pending');
+    
+    if (!job) {
+        return res.json({ job: null });
+    }
+    
+    res.json({ job });
 });
 
 // Agent report job completion
 app.post('/api/agent/jobs/:jobId/status', (req, res) => {
+    const jobId = parseInt(req.params.jobId);
     const { status } = req.body; // 'completed', 'failed'
-    db.run(`UPDATE jobs SET status = ? WHERE id = ?`, [status, req.params.jobId], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
-    });
+    
+    const job = jobsDB.find(j => j.id === jobId);
+    if (job) {
+        job.status = status;
+    }
+    
+    res.json({ success: true });
 });
 
 // ==========================================
@@ -88,15 +77,12 @@ app.post('/api/agent/jobs/:jobId/status', (req, res) => {
 
 // List all devices
 app.get('/api/devices', (req, res) => {
-    db.all(`SELECT * FROM devices ORDER BY last_seen DESC`, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        // parse JSON strings
-        const devices = rows.map(r => ({
-            ...r,
-            update_list: JSON.parse(r.update_list || '[]')
-        }));
-        res.json(devices);
+    // Convert Map to array and sort by last_seen descending
+    const devicesArray = Array.from(devicesDB.values()).sort((a, b) => {
+        return new Date(b.last_seen) - new Date(a.last_seen);
     });
+    
+    res.json(devicesArray);
 });
 
 // Queue an update command for a device
@@ -104,11 +90,17 @@ app.post('/api/devices/:hostname/trigger', (req, res) => {
     const hostname = req.params.hostname;
     const { command } = req.body; // e.g., 'Force-Updates'
     
-    db.run(`INSERT INTO jobs (hostname, command, status, created_at) VALUES (?, ?, 'pending', ?)`,
-    [hostname, command, new Date().toISOString()], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true, jobId: this.lastID });
-    });
+    const newJob = {
+        id: nextJobId++,
+        hostname,
+        command,
+        status: 'pending',
+        created_at: new Date().toISOString()
+    };
+    
+    jobsDB.push(newJob);
+    
+    res.json({ success: true, jobId: newJob.id });
 });
 
 app.listen(PORT, () => {
