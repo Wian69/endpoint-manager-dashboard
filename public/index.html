@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endpoint Management Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header class="glass-header">
+            <h1>Endpoint Management <span>Dashboard</span></h1>
+            <p>Real-time device monitoring and update deployment</p>
+        </header>
+
+        <main>
+            <div class="stats-row">
+                <div class="stat-card glass-card">
+                    <h3>Total Devices</h3>
+                    <div class="stat-value" id="total-devices">0</div>
+                </div>
+                <div class="stat-card glass-card warning">
+                    <h3>Pending Updates</h3>
+                    <div class="stat-value" id="total-updates">0</div>
+                </div>
+            </div>
+
+            <section class="devices-section">
+                <div class="section-header">
+                    <h2>Connected Endpoints</h2>
+                    <button class="btn-primary" onclick="refreshDevices()">Refresh Data</button>
+                </div>
+                
+                <div class="devices-grid" id="devices-grid">
+                    <!-- Devices will be injected here via JS -->
+                    <div class="loading-spinner">Loading devices...</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
