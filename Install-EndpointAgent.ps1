@@ -133,16 +133,21 @@ try {
                 } catch {}
                 
                 Send-Log `$jobId "Searching for all available Windows Updates (including drivers and optional extensions)..."
-                `$SearchResult = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0 and (Type='Software' or Type='Driver')")
+                `$SearchResult1 = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0")
+                `$SearchResult2 = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0 and Type='Driver'")
                 
-                `$winUpdatesCount = `$SearchResult.Updates.Count
+                `$winUpdatesCount = `$SearchResult1.Updates.Count + `$SearchResult2.Updates.Count
                 Send-Log `$jobId "Found `$winUpdatesCount pending Windows Update(s)."
                 
                 if (`$winUpdatesCount -gt 0) {
                     `$UpdatesToDownload = New-Object -ComObject Microsoft.Update.UpdateColl
-                    foreach (`$Update in `$SearchResult.Updates) {
+                    foreach (`$Update in `$SearchResult1.Updates) {
                         `$UpdatesToDownload.Add(`$Update) | Out-Null
-                        Send-Log `$jobId "Queued for download/install: `$(`$Update.Title)"
+                        Send-Log `$jobId "Queued for download/install: [OS] `$(`$Update.Title)"
+                    }
+                    foreach (`$Update in `$SearchResult2.Updates) {
+                        `$UpdatesToDownload.Add(`$Update) | Out-Null
+                        Send-Log `$jobId "Queued for download/install: [Driver] `$(`$Update.Title)"
                     }
                     
                     Send-Log `$jobId "Downloading Windows Updates (this may take a while)..."
@@ -260,14 +265,17 @@ try {
                     `$UpdateSearcher.ServiceID = "7971f918-a847-4430-9279-4a52d1efe18d"
                 } catch {}
                 
-                `$SearchResult = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0 and (Type='Software' or Type='Driver')")
+                `$SearchResult1 = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0")
+                `$SearchResult2 = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0 and Type='Driver'")
                 
-                if (`$SearchResult.Updates.Count -gt 0) {
-                    foreach (`$Update in `$SearchResult.Updates) {
-                        `$typePrefix = if (`$Update.Type -eq 'Driver') { "[Driver]" } else { "[OS]" }
-                        `$detailedUpdates += "`$typePrefix `$(`$Update.Title)"
+                if ((`$SearchResult1.Updates.Count + `$SearchResult2.Updates.Count) -gt 0) {
+                    foreach (`$Update in `$SearchResult1.Updates) {
+                        `$detailedUpdates += "[OS] `$(`$Update.Title)"
                     }
-                    Send-Log `$jobId "Found `$(`$SearchResult.Updates.Count) missing vulnerabilities/drivers."
+                    foreach (`$Update in `$SearchResult2.Updates) {
+                        `$detailedUpdates += "[Driver] `$(`$Update.Title)"
+                    }
+                    Send-Log `$jobId "Found `$(`$SearchResult1.Updates.Count + `$SearchResult2.Updates.Count) missing vulnerabilities/drivers."
                 } else {
                     Send-Log `$jobId "No missing vulnerabilities or drivers found."
                 }
