@@ -75,6 +75,14 @@ function Send-Log (`$jobId, `$message) {
     } catch {}
 }
 
+# Function to send progress to the server
+function Send-Progress (`$jobId, `$progress) {
+    `$progBody = @{ progress = `$progress } | ConvertTo-Json
+    try {
+        Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/progress" -Method Post -Body `$progBody -ContentType "application/json" -TimeoutSec 5
+    } catch {}
+}
+
 # 2. Check for jobs
 try {
     `$jobResponse = Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$Hostname" -Method Get -TimeoutSec 10
@@ -100,12 +108,40 @@ try {
             `$WingetPath = Get-ChildItem -Path "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Last 1
             
             if (`$WingetPath) {
-                Send-Log `$jobId "WinGet found. Running aggressive upgrade for all apps..."
+                Send-Log `$jobId "WinGet found. Scanning for available upgrades..."
                 `$env:WT_SESSION = `$null
-                `$wingetOutput = & `$WingetPath upgrade --all --silent --accept-source-agreements --accept-package-agreements --force --include-unknown | Out-String
-                Send-Log `$jobId "WinGet Output:`n`$wingetOutput"
+                `$Upgrades = & `$WingetPath upgrade | Out-String
+                `$lines = `$Upgrades -split "``n"
+                
+                `$appIdsToUpdate = @()
+                foreach (`$line in `$lines) {
+                    if (`$line -match ".*? (?<id>[\w\.\-]+) \s+ [\d\.\w]+ \s+ [\d\.\w]+") {
+                        `$appIdsToUpdate += `$matches['id']
+                    }
+                }
+                
+                `$totalApps = `$appIdsToUpdate.Count
+                if (`$totalApps -gt 0) {
+                    Send-Log `$jobId "Found `$totalApps applications to upgrade."
+                    `$currentApp = 0
+                    
+                    foreach (`$appId in `$appIdsToUpdate) {
+                        `$currentApp++
+                        `$percentage = [math]::Round((`$currentApp / `$totalApps) * 100)
+                        
+                        Send-Log `$jobId "Upgrading `$appId (App `$currentApp of `$totalApps) - `$percentage% Complete"
+                        Send-Progress `$jobId `$percentage
+                        
+                        `$wingetOutput = & `$WingetPath upgrade --id `$appId --exact --silent --accept-source-agreements --accept-package-agreements --force --include-unknown | Out-String
+                        Send-Log `$jobId "Output for `$appId:`n`$wingetOutput"
+                    }
+                } else {
+                    Send-Log `$jobId "No third-party applications require upgrading."
+                    Send-Progress `$jobId 100
+                }
             } else {
                 Send-Log `$jobId "WinGet executable not found on this device."
+                Send-Progress `$jobId 100
             }
 
             # Report completion

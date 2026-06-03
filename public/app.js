@@ -162,6 +162,9 @@ async function refreshCurrentLogs() {
         
         statusSpan.textContent = `Job Status: ${data.status}`;
         
+        const progressBar = document.getElementById('modal-progress');
+        progressBar.style.width = `${data.progress || 0}%`;
+        
         if (data.logs.length === 0) {
             terminal.innerHTML = 'No logs available for the most recent job.';
         } else {

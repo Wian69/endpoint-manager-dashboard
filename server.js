@@ -83,6 +83,18 @@ app.post('/api/agent/jobs/:jobId/log', (req, res) => {
     res.json({ success: true });
 });
 
+// Agent post progress
+app.post('/api/agent/jobs/:jobId/progress', (req, res) => {
+    const jobId = parseInt(req.params.jobId);
+    const { progress } = req.body;
+    
+    const job = jobsDB.find(j => j.id === jobId);
+    if (job) {
+        job.progress = parseInt(progress) || 0;
+    }
+    res.json({ success: true });
+});
+
 // ==========================================
 // DASHBOARD ROUTES (Called by the web UI)
 // ==========================================
@@ -108,6 +120,7 @@ app.post('/api/devices/:hostname/trigger', (req, res) => {
         command,
         status: 'pending',
         logs: [],
+        progress: 0,
         created_at: new Date().toISOString()
     };
     
@@ -123,10 +136,10 @@ app.get('/api/devices/:hostname/logs', (req, res) => {
     const job = jobsDB.slice().reverse().find(j => j.hostname === hostname);
     
     if (!job) {
-        return res.json({ logs: [], status: 'No jobs found' });
+        return res.json({ logs: [], status: 'No jobs found', progress: 0 });
     }
     
-    res.json({ logs: job.logs, status: job.status });
+    res.json({ logs: job.logs, status: job.status, progress: job.progress });
 });
 
 app.listen(PORT, () => {
