@@ -35,10 +35,18 @@ function Get-PendingUpdates {
             `$env:WT_SESSION = `$null
             `$Upgrades = & `$WingetPath upgrade | Out-String
             `$lines = `$Upgrades -split "``n"
+            `$skipLines = `$true
             foreach (`$line in `$lines) {
-                if (`$line -match ".*? (?<id>[\w\.\-]+) \s+ [\d\.\w]+ \s+ [\d\.\w]+") {
-                    `$appUpdates++
-                    `$updateList += `$matches['id']
+                if (`$line -match "^----") { `$skipLines = `$false; continue }
+                if (`$skipLines) { continue }
+                
+                `$cols = `$line -split '\s{2,}'
+                if (`$cols.Count -ge 3) {
+                    `$id = `$cols[1]
+                    if (`$id) {
+                        `$appUpdates++
+                        `$updateList += `$id
+                    }
                 }
             }
         }
@@ -94,14 +102,45 @@ try {
             # EXECUTING THE UPDATE LOGIC
             Send-Log `$jobId "Job started on `$Hostname."
             
-            # Start Windows Updates
-            Send-Log `$jobId "Initiating Windows Update Scan..."
-            Start-Process -FilePath "UsoClient.exe" -ArgumentList "StartScan" -Wait -NoNewWindow
-            Start-Sleep -Seconds 5
+            # Start Windows Updates via COM Object
+            Send-Log `$jobId "Initiating Windows Update via COM Object (Microsoft.Update.Session)..."
             
-            Send-Log `$jobId "Initiating Windows Update Install..."
-            Start-Process -FilePath "UsoClient.exe" -ArgumentList "StartInstall" -Wait -NoNewWindow
-            Send-Log `$jobId "Windows Update triggers complete. (These run silently in the background)."
+            try {
+                `$UpdateSession = New-Object -ComObject Microsoft.Update.Session
+                `$UpdateSearcher = `$UpdateSession.CreateUpdateSearcher()
+                
+                Send-Log `$jobId "Searching for all available Windows Updates (including drivers and optional extensions)..."
+                `$SearchResult = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0")
+                
+                `$winUpdatesCount = `$SearchResult.Updates.Count
+                Send-Log `$jobId "Found `$winUpdatesCount pending Windows Update(s)."
+                
+                if (`$winUpdatesCount -gt 0) {
+                    `$UpdatesToDownload = New-Object -ComObject Microsoft.Update.UpdateColl
+                    foreach (`$Update in `$SearchResult.Updates) {
+                        `$UpdatesToDownload.Add(`$Update) | Out-Null
+                        Send-Log `$jobId "Queued for download/install: `$(`$Update.Title)"
+                    }
+                    
+                    Send-Log `$jobId "Downloading Windows Updates (this may take a while)..."
+                    `$Downloader = `$UpdateSession.CreateUpdateDownloader()
+                    `$Downloader.Updates = `$UpdatesToDownload
+                    `$Downloader.Download()
+                    
+                    Send-Log `$jobId "Installing Windows Updates..."
+                    `$Installer = `$UpdateSession.CreateUpdateInstaller()
+                    `$Installer.Updates = `$UpdatesToDownload
+                    `$InstallResult = `$Installer.Install()
+                    
+                    if (`$InstallResult.RebootRequired) {
+                        Send-Log `$jobId "Windows Updates installed. A reboot is required to complete some updates."
+                    } else {
+                        Send-Log `$jobId "Windows Updates installed successfully."
+                    }
+                }
+            } catch {
+                Send-Log `$jobId "Error occurred during Windows Updates: `$(`$_.Exception.Message)"
+            }
 
             # Start WinGet Updates
             Send-Log `$jobId "Locating WinGet executable..."
