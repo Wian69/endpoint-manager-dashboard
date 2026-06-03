@@ -8,7 +8,7 @@
 
 $AgentDir = "C:\ProgramData\EndpointAgent"
 $AgentScriptPath = "$AgentDir\AgentTask.ps1"
-$ServerUrl = "http://YOUR_SERVER_IP_OR_DOMAIN:3000" # CHANGE THIS BEFORE DEPLOYMENT
+$ServerUrl = "https://endpoint-manager-dashboard.onrender.com" # CHANGE THIS BEFORE DEPLOYMENT
 
 # 1. Create Directory
 if (-not (Test-Path $AgentDir)) {
