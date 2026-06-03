@@ -219,17 +219,19 @@ try {
         }
         
         if (`$command -eq 'Restart-Device') {
+            `$customMessage = `$jobResponse.job.message
+            if (-not `$customMessage) { `$customMessage = "Your device will restart in 5 minutes to save your work." }
+            
             Send-Log `$jobId "Job started on `$Hostname."
-            Send-Log `$jobId "Initiating forceful device restart in 5 seconds..."
+            Send-Log `$jobId "Initiating graceful device restart in 5 minutes with message: '$customMessage'"
             Send-Progress `$jobId 100
             
-            # Report completion immediately before it dies
+            # Report completion immediately before it runs shutdown
             Send-Log `$jobId "Job finished."
             `$statusBody = @{ status = 'completed' } | ConvertTo-Json
             Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
             
-            Start-Sleep -Seconds 5
-            & shutdown.exe /r /t 300 /c "Equinox Outsourced services has deployed a restart as the device has pending updates. The device will restart in 5 minutes to save your work."
+            & shutdown.exe /r /t 300 /c `$customMessage
         }
     }
 } catch {

@@ -15,6 +15,13 @@
         </header>
 
         <main>
+            <div class="glass-card" style="margin-bottom: 2rem;">
+                <h3 style="margin-bottom: 1rem; color: var(--text-secondary);">Global Settings</h3>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label for="restart-msg" style="font-size: 0.9rem; font-weight: 600;">Restart Notification Message</label>
+                    <textarea id="restart-msg" rows="2" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', sans-serif;" onchange="saveSettings()">Equinox Outsourced services has deployed a restart as the device has pending updates. The device will restart in 5 minutes to save your work.</textarea>
+                </div>
+            </div>
             <div class="stats-row">
                 <div class="stat-card glass-card">
                     <h3>Total Devices</h3>

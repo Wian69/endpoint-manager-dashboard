@@ -132,12 +132,13 @@ app.get('/api/devices', (req, res) => {
 // Queue an update command for a device
 app.post('/api/devices/:hostname/trigger', (req, res) => {
     const hostname = req.params.hostname;
-    const { command } = req.body; // e.g., 'Force-Updates'
+    const { command, message } = req.body; // e.g., 'Force-Updates'
     
     const newJob = {
         id: nextJobId++,
         hostname,
         command,
+        message,
         status: 'pending',
         logs: [],
         progress: 0,

@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Initial load
+    loadSettings();
     refreshDevices();
     // Auto-refresh every 10 seconds
     setInterval(refreshDevices, 10000);
@@ -138,7 +140,9 @@ async function triggerUpdate(hostname, btnElement) {
 }
 
 async function triggerRestart(hostname, btnElement) {
-    if (!confirm(`WARNING: This will instantly kill all running applications on ${hostname} and force a reboot. Proceed?`)) return;
+    if (!confirm(`WARNING: This will instantly force a reboot on ${hostname}. Proceed?`)) return;
+    
+    const customMessage = document.getElementById('restart-msg').value.trim() || "Your device will restart in 5 minutes.";
     
     btnElement.classList.add('triggering');
     btnElement.textContent = 'Queuing...';
@@ -147,7 +151,7 @@ async function triggerRestart(hostname, btnElement) {
         const response = await fetch(`/api/devices/${hostname}/trigger`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: 'Restart-Device' })
+            body: JSON.stringify({ command: 'Restart-Device', message: customMessage })
         });
         
         const result = await response.json();
@@ -194,6 +198,24 @@ function closeLogs() {
     document.getElementById('logs-modal').style.display = 'none';
     currentLogHostname = null;
     if (logRefreshInterval) clearInterval(logRefreshInterval);
+}
+
+function closeModalOnOutsideClick(event) {
+    if (event.target === document.getElementById('logs-modal')) {
+        closeLogs();
+    }
+}
+
+function saveSettings() {
+    const msg = document.getElementById('restart-msg').value;
+    localStorage.setItem('restartMsg', msg);
+}
+
+function loadSettings() {
+    const savedMsg = localStorage.getItem('restartMsg');
+    if (savedMsg) {
+        document.getElementById('restart-msg').value = savedMsg;
+    }
 }
 
 async function refreshCurrentLogs() {
