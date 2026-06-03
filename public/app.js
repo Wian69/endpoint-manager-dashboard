@@ -36,9 +36,9 @@ function renderDevices(devices) {
     devices.forEach(device => {
         const totalPending = (device.pending_windows_updates || 0) + (device.pending_app_updates || 0);
         
-        // Check if device was seen in the last 15 minutes (900000 ms)
+        // Check if device was seen in the last 3 minutes (180000 ms)
         const lastSeen = new Date(device.last_seen);
-        const isOnline = (new Date() - lastSeen) < 900000;
+        const isOnline = (new Date() - lastSeen) < 180000;
         
         const card = document.createElement('div');
         card.className = 'device-card glass-card';

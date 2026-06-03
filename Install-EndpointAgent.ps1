@@ -123,7 +123,7 @@ Set-Content -Path $AgentScriptPath -Value $AgentPayload -Encoding UTF8
 # 3. Create Scheduled Task
 $TaskName = "EndpointManagementAgent"
 $TaskAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$AgentScriptPath`""
-$TaskTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
+$TaskTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1)
 $TaskPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 
 # Unregister if it already exists
@@ -132,4 +132,4 @@ Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Silent
 # Register the new task
 Register-ScheduledTask -TaskName $TaskName -Action $TaskAction -Trigger $TaskTrigger -Principal $TaskPrincipal -Description "Endpoint Management Agent Check-in"
 
-Write-Output "Endpoint Agent successfully installed and scheduled to run every 5 minutes."
+Write-Output "Endpoint Agent successfully installed and scheduled to run every 1 minute."
