@@ -52,10 +52,15 @@ function Get-PendingUpdates {
         }
     } catch {}
 
+    `$rebootPending = `$false
+    if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") { `$rebootPending = `$true }
+    if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") { `$rebootPending = `$true }
+
     return @{
         windows = `$windowsUpdates
         apps = `$appUpdates
         list = `$updateList
+        rebootRequired = `$rebootPending
     }
 }
 
@@ -67,6 +72,7 @@ function Get-PendingUpdates {
     pendingWindowsUpdates = `$updates.windows
     pendingAppUpdates = `$updates.apps
     updateList = `$updates.list
+    rebootRequired = `$updates.rebootRequired
 } | ConvertTo-Json
 
 try {
@@ -201,6 +207,20 @@ try {
                 completedUpdates = `$completedUpdates
             } | ConvertTo-Json
             Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
+        }
+        
+        if (`$command -eq 'Restart-Device') {
+            Send-Log `$jobId "Job started on `$Hostname."
+            Send-Log `$jobId "Initiating forceful device restart in 5 seconds..."
+            Send-Progress `$jobId 100
+            
+            # Report completion immediately before it dies
+            Send-Log `$jobId "Job finished."
+            `$statusBody = @{ status = 'completed' } | ConvertTo-Json
+            Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
+            
+            Start-Sleep -Seconds 5
+            Restart-Computer -Force
         }
     }
 } catch {

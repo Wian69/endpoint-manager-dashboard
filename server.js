@@ -25,7 +25,7 @@ let nextJobId = 1;
 
 // Agent Check-in
 app.post('/api/agent/checkin', (req, res) => {
-    const { hostname, osVersion, pendingWindowsUpdates, pendingAppUpdates, updateList } = req.body;
+    const { hostname, osVersion, pendingWindowsUpdates, pendingAppUpdates, updateList, rebootRequired } = req.body;
     
     if (!hostname) return res.status(400).json({ error: 'Hostname is required' });
 
@@ -43,7 +43,8 @@ app.post('/api/agent/checkin', (req, res) => {
         pending_windows_updates: pendingWindowsUpdates,
         pending_app_updates: pendingAppUpdates,
         update_list: updateList || [], // Already an array, no JSON.stringify needed
-        completed_updates: completedUpdates
+        completed_updates: completedUpdates,
+        reboot_required: !!rebootRequired
     });
 
     res.json({ success: true });

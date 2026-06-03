@@ -51,6 +51,10 @@ function renderDevices(devices) {
         } else {
             tagsHtml = `<span class="tag safe">Up to Date</span>`;
         }
+        
+        if (device.reboot_required) {
+            tagsHtml += `<span class="tag" style="background-color: var(--warning-color); color: #000;">Reboot Pending</span>`;
+        }
 
         // App list details
         let appsListHtml = '';
@@ -96,6 +100,11 @@ function renderDevices(devices) {
                 <button class="btn-danger" onclick="triggerUpdate('${escapeHtml(device.hostname)}', this)" ${totalPending === 0 ? 'disabled style="opacity:0.5"' : ''}>
                     Force Updates
                 </button>
+                ${device.reboot_required ? `
+                <button class="btn-danger" style="background-color: var(--warning-color); color: #000;" onclick="triggerRestart('${escapeHtml(device.hostname)}', this)">
+                    Restart
+                </button>
+                ` : ''}
             </div>
         `;
         
@@ -125,6 +134,33 @@ async function triggerUpdate(hostname, btnElement) {
         }
     } catch (error) {
         console.error('Failed to trigger update:', error);
+        btnElement.textContent = 'Error';
+        btnElement.classList.remove('triggering');
+    }
+}
+
+async function triggerRestart(hostname, btnElement) {
+    if (!confirm(`WARNING: This will instantly kill all running applications on ${hostname} and force a reboot. Proceed?`)) return;
+    
+    btnElement.classList.add('triggering');
+    btnElement.textContent = 'Queuing...';
+    
+    try {
+        const response = await fetch(`/api/devices/${hostname}/trigger`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'Restart-Device' })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            btnElement.textContent = 'Restart Queued';
+            btnElement.style.background = 'var(--success-color)';
+        } else {
+            throw new Error('Server returned false');
+        }
+    } catch (error) {
+        console.error('Failed to trigger restart:', error);
         btnElement.textContent = 'Error';
         btnElement.classList.remove('triggering');
     }
