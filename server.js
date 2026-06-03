@@ -112,5 +112,5 @@ app.post('/api/devices/:hostname/trigger', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(\`Endpoint Management Server running on port \${PORT}\`);
+    console.log(`Endpoint Management Server running on port ${PORT}`);
 });

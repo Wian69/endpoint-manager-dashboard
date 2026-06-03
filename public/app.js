@@ -89,13 +89,13 @@ function renderDevices(devices) {
 }
 
 async function triggerUpdate(hostname, btnElement) {
-    if (!confirm(\`Are you sure you want to force updates on \${hostname}?\`)) return;
+    if (!confirm(`Are you sure you want to force updates on ${hostname}?`)) return;
     
     btnElement.classList.add('triggering');
     btnElement.textContent = 'Queuing...';
     
     try {
-        const response = await fetch(\`/api/devices/\${hostname}/trigger\`, {
+        const response = await fetch(`/api/devices/${hostname}/trigger`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ command: 'Force-Updates' })
