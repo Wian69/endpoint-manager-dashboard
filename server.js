@@ -60,6 +60,9 @@ app.get('/api/agent/jobs/:hostname', (req, res) => {
         return res.json({ job: null });
     }
     
+    // Mark as in-progress immediately so concurrent polls don't pick up the same job
+    job.status = 'in_progress';
+    
     res.json({ job });
 });
 
