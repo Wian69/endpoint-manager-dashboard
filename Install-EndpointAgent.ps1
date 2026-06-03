@@ -23,11 +23,19 @@ $AgentPayload = @"
 
 # Function to get pending updates
 function Get-PendingUpdates {
-    `$windowsUpdates = 0
     `$appUpdates = 0
     `$updateList = @()
 
-    # Very basic check for demonstration. In production, use COM object for exact count.
+    # Fast offline check for standard OS updates (skips drivers to prevent high CPU usage every minute)
+    try {
+        `$UpdateSession = New-Object -ComObject Microsoft.Update.Session
+        `$UpdateSearcher = `$UpdateSession.CreateUpdateSearcher()
+        `$UpdateSearcher.Online = `$false
+        `$SearchResult = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0")
+        `$windowsUpdates = `$SearchResult.Updates.Count
+    } catch {
+        `$windowsUpdates = 0
+    }
     # For WinGet:
     try {
         `$WingetPath = Get-ChildItem -Path "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Last 1
