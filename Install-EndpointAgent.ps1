@@ -114,12 +114,21 @@ try {
                 `$lines = `$Upgrades -split "``n"
                 
                 `$appIdsToUpdate = @()
+                `$skipLines = `$true
                 foreach (`$line in `$lines) {
-                    if (`$line -match ".*? (?<id>[\w\.\-]+) \s+ [\d\.\w]+ \s+ [\d\.\w]+") {
-                        `$appIdsToUpdate += `$matches['id']
+                    if (`$line -match "^----") { `$skipLines = `$false; continue }
+                    if (`$skipLines) { continue }
+                    
+                    `$cols = `$line -split '\s{2,}'
+                    if (`$cols.Count -ge 3) {
+                        `$id = `$cols[1]
+                        if (`$id) {
+                            `$appIdsToUpdate += `$id
+                        }
                     }
                 }
                 
+                `$completedUpdates = @()
                 `$totalApps = `$appIdsToUpdate.Count
                 if (`$totalApps -gt 0) {
                     Send-Log `$jobId "Found `$totalApps applications to upgrade."
@@ -132,8 +141,10 @@ try {
                         Send-Log `$jobId "Upgrading `$appId (App `$currentApp of `$totalApps) - `$percentage% Complete"
                         Send-Progress `$jobId `$percentage
                         
-                        `$wingetOutput = & `$WingetPath upgrade --id `$appId --exact --silent --accept-source-agreements --accept-package-agreements --force --include-unknown | Out-String
-                        Send-Log `$jobId "Output for `$appId :`n`$wingetOutput"
+                        `$wingetOutput = & `$WingetPath upgrade --id `"`$appId`" --exact --silent --accept-source-agreements --accept-package-agreements --force --include-unknown | Out-String
+                        Send-Log `$jobId "Output for `$appId:`n`$wingetOutput"
+                        
+                        `$completedUpdates += `$appId
                     }
                 } else {
                     Send-Log `$jobId "No third-party applications require upgrading."
@@ -146,7 +157,11 @@ try {
 
             # Report completion
             Send-Log `$jobId "Job finished."
-            Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body (@{status='completed'} | ConvertTo-Json) -ContentType "application/json"
+            `$statusBody = @{
+                status = 'completed'
+                completedUpdates = `$completedUpdates
+            } | ConvertTo-Json
+            Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
         }
     }
 } catch {

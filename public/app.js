@@ -60,6 +60,17 @@ function renderDevices(devices) {
             appsListHtml = `<p><strong>Pending Apps:</strong> ${apps}${more}</p>`;
         }
 
+        // Completed updates list
+        let completedHtml = '';
+        if (device.completed_updates && device.completed_updates.length > 0) {
+            const completed = device.completed_updates.join(', ');
+            const timeStr = new Date(device.last_update_run).toLocaleTimeString();
+            completedHtml = `<div class="completed-updates" style="margin-top:0.5rem; padding: 0.5rem; background:rgba(16,185,129,0.1); border-left:3px solid var(--success-color); border-radius:4px;">
+                <p style="margin:0; font-size:0.85rem;"><strong>✓ Completed at ${timeStr}:</strong></p>
+                <p style="margin:0; font-size:0.85rem; color:var(--text-secondary);">${completed}</p>
+            </div>`;
+        }
+
         card.innerHTML = `
             <div>
                 <div class="device-header">
@@ -72,6 +83,7 @@ function renderDevices(devices) {
                     <p><strong>OS:</strong> ${escapeHtml(device.os_version)}</p>
                     <p><strong>Last Check-in:</strong> ${lastSeen.toLocaleTimeString()}</p>
                     ${appsListHtml}
+                    ${completedHtml}
                 </div>
                 <div class="update-tags">
                     ${tagsHtml}

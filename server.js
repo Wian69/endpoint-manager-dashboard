@@ -31,6 +31,10 @@ app.post('/api/agent/checkin', (req, res) => {
 
     const now = new Date().toISOString();
     
+    // Preserve existing completed updates if any
+    const existingDevice = devicesDB.get(hostname);
+    const completedUpdates = existingDevice ? existingDevice.completed_updates : [];
+
     // Update or insert device
     devicesDB.set(hostname, {
         hostname,
@@ -38,7 +42,8 @@ app.post('/api/agent/checkin', (req, res) => {
         last_seen: now,
         pending_windows_updates: pendingWindowsUpdates,
         pending_app_updates: pendingAppUpdates,
-        update_list: updateList || [] // Already an array, no JSON.stringify needed
+        update_list: updateList || [], // Already an array, no JSON.stringify needed
+        completed_updates: completedUpdates
     });
 
     res.json({ success: true });
@@ -61,11 +66,22 @@ app.get('/api/agent/jobs/:hostname', (req, res) => {
 // Agent report job completion
 app.post('/api/agent/jobs/:jobId/status', (req, res) => {
     const jobId = parseInt(req.params.jobId);
-    const { status } = req.body; // 'completed', 'failed'
+    const { status, completedUpdates } = req.body; // 'completed', 'failed'
     
     const job = jobsDB.find(j => j.id === jobId);
     if (job) {
         job.status = status;
+        
+        // If the job has completedUpdates, attach them to the device profile permanently
+        if (completedUpdates && Array.isArray(completedUpdates)) {
+            const device = devicesDB.get(job.hostname);
+            if (device) {
+                // Keep only the most recent completed updates, or append them
+                device.completed_updates = completedUpdates;
+                device.last_update_run = new Date().toISOString();
+                devicesDB.set(job.hostname, device);
+            }
+        }
     }
     
     res.json({ success: true });
