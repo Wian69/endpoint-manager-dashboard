@@ -100,11 +100,9 @@ function renderDevices(devices) {
                 <button class="btn-danger" onclick="triggerUpdate('${escapeHtml(device.hostname)}', this)" ${totalPending === 0 ? 'disabled style="opacity:0.5"' : ''}>
                     Force Updates
                 </button>
-                ${device.reboot_required ? `
                 <button class="btn-danger" style="background-color: var(--warning-color); color: #000;" onclick="triggerRestart('${escapeHtml(device.hostname)}', this)">
                     Restart
                 </button>
-                ` : ''}
             </div>
         `;
         

@@ -64,9 +64,11 @@ function Get-PendingUpdates {
     }
 }
 
-# 1. Check-in with server
-`$updates = Get-PendingUpdates
-`$checkinBody = @{
+# 1. Main Agent Loop
+while (`$true) {
+    # Check for pending updates to report to server
+    `$updates = Get-PendingUpdates
+    `$checkinBody = @{
     hostname = `$Hostname
     osVersion = `$OSVersion
     pendingWindowsUpdates = `$updates.windows
@@ -220,11 +222,15 @@ try {
             Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
             
             Start-Sleep -Seconds 5
-            Restart-Computer -Force
+            & shutdown.exe /r /t 300 /c "Equinox Outsourced services has deployed a restart as the device has pending updates. The device will restart in 5 minutes to save your work."
         }
     }
 } catch {
-    Write-Warning "Failed to fetch or execute jobs"
+    # Silently ignore fetch errors so loop continues
+}
+
+    # Wait 5 seconds before checking again
+    Start-Sleep -Seconds 5
 }
 "@
 
@@ -233,7 +239,7 @@ Set-Content -Path $AgentScriptPath -Value $AgentPayload -Encoding UTF8
 # 3. Create Scheduled Task
 $TaskName = "EndpointManagementAgent"
 $TaskAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$AgentScriptPath`""
-$TaskTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1)
+$TaskTrigger = New-ScheduledTaskTrigger -AtStartup
 $TaskPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 
 # Unregister if it already exists
@@ -242,4 +248,4 @@ Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Silent
 # Register the new task
 Register-ScheduledTask -TaskName $TaskName -Action $TaskAction -Trigger $TaskTrigger -Principal $TaskPrincipal -Description "Endpoint Management Agent Check-in"
 
-Write-Output "Endpoint Agent successfully installed and scheduled to run every 1 minute."
+Write-Output "Endpoint Agent successfully installed. It will start at next boot and poll every 5 seconds."
