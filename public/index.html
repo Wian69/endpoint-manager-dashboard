@@ -40,6 +40,22 @@
         </main>
     </div>
 
+    <div id="logs-modal" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2 id="modal-title">Device Logs</h2>
+                <span class="close-btn" onclick="closeLogs()">&times;</span>
+            </div>
+            <div class="terminal-window" id="terminal-output">
+                <!-- Logs injected here -->
+            </div>
+            <div class="modal-footer">
+                <span id="modal-status" class="tag">Status</span>
+                <button class="btn-primary" onclick="refreshCurrentLogs()">Refresh Logs</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

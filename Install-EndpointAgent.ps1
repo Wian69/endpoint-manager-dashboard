@@ -67,6 +67,14 @@ try {
     Write-Warning "Failed to check in with server"
 }
 
+# Function to send logs to the server
+function Send-Log (`$jobId, `$message) {
+    `$logBody = @{ log = `$message } | ConvertTo-Json
+    try {
+        Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/log" -Method Post -Body `$logBody -ContentType "application/json" -TimeoutSec 5
+    } catch {}
+}
+
 # 2. Check for jobs
 try {
     `$jobResponse = Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$Hostname" -Method Get -TimeoutSec 10
@@ -76,19 +84,32 @@ try {
 
         if (`$command -eq 'Force-Updates') {
             # EXECUTING THE UPDATE LOGIC
+            Send-Log `$jobId "Job started on `$Hostname."
+            
             # Start Windows Updates
+            Send-Log `$jobId "Initiating Windows Update Scan..."
             Start-Process -FilePath "UsoClient.exe" -ArgumentList "StartScan" -Wait -NoNewWindow
             Start-Sleep -Seconds 5
+            
+            Send-Log `$jobId "Initiating Windows Update Install..."
             Start-Process -FilePath "UsoClient.exe" -ArgumentList "StartInstall" -Wait -NoNewWindow
+            Send-Log `$jobId "Windows Update triggers complete. (These run silently in the background)."
 
             # Start WinGet Updates
+            Send-Log `$jobId "Locating WinGet executable..."
             `$WingetPath = Get-ChildItem -Path "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Last 1
+            
             if (`$WingetPath) {
+                Send-Log `$jobId "WinGet found. Running aggressive upgrade for all apps..."
                 `$env:WT_SESSION = `$null
-                & `$WingetPath upgrade --all --silent --accept-source-agreements --accept-package-agreements --force --include-unknown
+                `$wingetOutput = & `$WingetPath upgrade --all --silent --accept-source-agreements --accept-package-agreements --force --include-unknown | Out-String
+                Send-Log `$jobId "WinGet Output:`n`$wingetOutput"
+            } else {
+                Send-Log `$jobId "WinGet executable not found on this device."
             }
 
             # Report completion
+            Send-Log `$jobId "Job finished."
             Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body (@{status='completed'} | ConvertTo-Json) -ContentType "application/json"
         }
     }

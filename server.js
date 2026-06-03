@@ -71,6 +71,18 @@ app.post('/api/agent/jobs/:jobId/status', (req, res) => {
     res.json({ success: true });
 });
 
+// Agent post log
+app.post('/api/agent/jobs/:jobId/log', (req, res) => {
+    const jobId = parseInt(req.params.jobId);
+    const { log } = req.body;
+    
+    const job = jobsDB.find(j => j.id === jobId);
+    if (job) {
+        job.logs.push(`[${new Date().toLocaleTimeString()}] ${log}`);
+    }
+    res.json({ success: true });
+});
+
 // ==========================================
 // DASHBOARD ROUTES (Called by the web UI)
 // ==========================================
@@ -95,12 +107,26 @@ app.post('/api/devices/:hostname/trigger', (req, res) => {
         hostname,
         command,
         status: 'pending',
+        logs: [],
         created_at: new Date().toISOString()
     };
     
     jobsDB.push(newJob);
     
     res.json({ success: true, jobId: newJob.id });
+});
+
+// Fetch logs for a specific device's latest job
+app.get('/api/devices/:hostname/logs', (req, res) => {
+    const hostname = req.params.hostname;
+    // Get the most recently created job for this hostname
+    const job = jobsDB.slice().reverse().find(j => j.hostname === hostname);
+    
+    if (!job) {
+        return res.json({ logs: [], status: 'No jobs found' });
+    }
+    
+    res.json({ logs: job.logs, status: job.status });
 });
 
 app.listen(PORT, () => {

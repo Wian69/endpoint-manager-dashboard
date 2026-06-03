@@ -77,7 +77,10 @@ function renderDevices(devices) {
                     ${tagsHtml}
                 </div>
             </div>
-            <div class="device-actions">
+            <div class="device-actions" style="gap: 1rem;">
+                <button class="btn-primary" onclick="openLogs('${escapeHtml(device.hostname)}')">
+                    View Logs
+                </button>
                 <button class="btn-danger" onclick="triggerUpdate('${escapeHtml(device.hostname)}', this)" ${totalPending === 0 ? 'disabled style="opacity:0.5"' : ''}>
                     Force Updates
                 </button>
@@ -123,4 +126,50 @@ function escapeHtml(unsafe) {
          .replace(/>/g, "&gt;")
          .replace(/"/g, "&quot;")
          .replace(/'/g, "&#039;");
+}
+
+/* Logging Modal Logic */
+let currentLogHostname = null;
+let logRefreshInterval = null;
+
+async function openLogs(hostname) {
+    currentLogHostname = hostname;
+    document.getElementById('logs-modal').style.display = 'block';
+    document.getElementById('modal-title').textContent = `Logs: ${hostname}`;
+    document.getElementById('terminal-output').innerHTML = 'Fetching logs...';
+    
+    await refreshCurrentLogs();
+    
+    // Auto refresh logs while modal is open
+    logRefreshInterval = setInterval(refreshCurrentLogs, 5000);
+}
+
+function closeLogs() {
+    document.getElementById('logs-modal').style.display = 'none';
+    currentLogHostname = null;
+    if (logRefreshInterval) clearInterval(logRefreshInterval);
+}
+
+async function refreshCurrentLogs() {
+    if (!currentLogHostname) return;
+    
+    try {
+        const response = await fetch(`/api/devices/${currentLogHostname}/logs`);
+        const data = await response.json();
+        
+        const terminal = document.getElementById('terminal-output');
+        const statusSpan = document.getElementById('modal-status');
+        
+        statusSpan.textContent = `Job Status: ${data.status}`;
+        
+        if (data.logs.length === 0) {
+            terminal.innerHTML = 'No logs available for the most recent job.';
+        } else {
+            terminal.innerHTML = data.logs.map(log => `<div class="log-line">${escapeHtml(log)}</div>`).join('');
+            // Scroll to bottom
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+    } catch (error) {
+        console.error('Failed to fetch logs:', error);
+    }
 }
