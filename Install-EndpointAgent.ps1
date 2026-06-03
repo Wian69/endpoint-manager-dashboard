@@ -142,7 +142,7 @@ try {
                         Send-Progress `$jobId `$percentage
                         
                         `$wingetOutput = & `$WingetPath upgrade --id `"`$appId`" --exact --silent --accept-source-agreements --accept-package-agreements --force --include-unknown | Out-String
-                        Send-Log `$jobId "Output for `$appId:`n`$wingetOutput"
+                        Send-Log `$jobId "Output for `$appId :`n`$wingetOutput"
                         
                         `$completedUpdates += `$appId
                     }
