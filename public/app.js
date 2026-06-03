@@ -77,6 +77,16 @@ function renderDevices(devices) {
             </div>`;
         }
 
+        // Detailed Scan Results
+        let detailedScanHtml = '';
+        if (device.detailed_updates && device.detailed_updates.length > 0) {
+            const listItems = device.detailed_updates.map(u => `<li style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 0.25rem;">${escapeHtml(u)}</li>`).join('');
+            detailedScanHtml = `<div class="detailed-scan" style="margin-top:0.75rem; padding: 0.5rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px;">
+                <p style="margin:0 0 0.5rem 0; font-size:0.85rem; font-weight:600;">Missing Vulnerabilities & Drivers:</p>
+                <ul style="margin:0; padding-left:1rem;">${listItems}</ul>
+            </div>`;
+        }
+
         card.innerHTML = `
             <div>
                 <div class="device-header">
@@ -89,6 +99,7 @@ function renderDevices(devices) {
                     <p><strong>OS:</strong> ${escapeHtml(device.os_version)}</p>
                     <p><strong>Last Check-in:</strong> ${lastSeen.toLocaleTimeString()}</p>
                     ${appsListHtml}
+                    ${detailedScanHtml}
                     ${completedHtml}
                 </div>
                 <div class="update-tags">
@@ -98,6 +109,9 @@ function renderDevices(devices) {
             <div class="device-actions" style="gap: 1rem;">
                 <button class="btn-primary" onclick="openLogs('${escapeHtml(device.hostname)}')">
                     View Logs
+                </button>
+                <button class="btn-primary" onclick="triggerScan('${escapeHtml(device.hostname)}', this)" style="background-color: #3b82f6;">
+                    Scan Device
                 </button>
                 <button class="btn-danger" onclick="triggerUpdate('${escapeHtml(device.hostname)}', this)" ${totalPending === 0 ? 'disabled style="opacity:0.5"' : ''}>
                     Force Updates
@@ -134,6 +148,35 @@ async function triggerUpdate(hostname, btnElement) {
         }
     } catch (error) {
         console.error('Failed to trigger update:', error);
+        btnElement.textContent = 'Error';
+        btnElement.classList.remove('triggering');
+    }
+}
+
+async function triggerScan(hostname, btnElement) {
+    btnElement.classList.add('triggering');
+    btnElement.textContent = 'Queuing Scan...';
+    
+    try {
+        const response = await fetch(`/api/devices/${hostname}/trigger`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'Scan-Updates' })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            btnElement.textContent = 'Scan Queued';
+            btnElement.style.background = 'var(--success-color)';
+            // Give them a heads up
+            setTimeout(() => {
+                alert(`A deep scan has been queued for ${hostname}. This may take up to 15 minutes to complete. You can view progress in the device logs.`);
+            }, 100);
+        } else {
+            throw new Error('Server returned false');
+        }
+    } catch (error) {
+        console.error('Failed to trigger scan:', error);
         btnElement.textContent = 'Error';
         btnElement.classList.remove('triggering');
     }

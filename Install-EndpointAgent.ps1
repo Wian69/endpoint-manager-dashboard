@@ -241,6 +241,76 @@ try {
             
             & shutdown.exe /r /t 300 /c `$customMessage
         }
+
+        if (`$command -eq 'Scan-Updates') {
+            Send-Log `$jobId "Job started on `$Hostname. Commencing deep scan..."
+            `$detailedUpdates = @()
+
+            # 1. COM Object Scan
+            Send-Log `$jobId "Initiating deep Windows Update scan via COM Object (Microsoft.Update.Session). This will take several minutes..."
+            Send-Progress `$jobId 10
+            
+            try {
+                `$UpdateSession = New-Object -ComObject Microsoft.Update.Session
+                `$UpdateSearcher = `$UpdateSession.CreateUpdateSearcher()
+                try {
+                    `$UpdateSvc = New-Object -ComObject Microsoft.Update.ServiceManager
+                    `$UpdateSvc.AddService2("7971f918-a847-4430-9279-4a52d1efe18d", 7, "") | Out-Null
+                    `$UpdateSearcher.ServerSelection = 3
+                    `$UpdateSearcher.ServiceID = "7971f918-a847-4430-9279-4a52d1efe18d"
+                } catch {}
+                
+                `$SearchResult = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0 and (Type='Software' or Type='Driver')")
+                
+                if (`$SearchResult.Updates.Count -gt 0) {
+                    foreach (`$Update in `$SearchResult.Updates) {
+                        `$typePrefix = if (`$Update.Type -eq 'Driver') { "[Driver]" } else { "[OS]" }
+                        `$detailedUpdates += "`$typePrefix `$(`$Update.Title)"
+                    }
+                    Send-Log `$jobId "Found `$(`$SearchResult.Updates.Count) missing vulnerabilities/drivers."
+                } else {
+                    Send-Log `$jobId "No missing vulnerabilities or drivers found."
+                }
+            } catch {
+                Send-Log `$jobId "Error occurred during COM Object scan: `$(`$_.Exception.Message)"
+            }
+            Send-Progress `$jobId 60
+            
+            # 2. WinGet Scan
+            Send-Log `$jobId "Scanning for 3rd-party application updates via WinGet..."
+            `$WingetPath = Get-ChildItem -Path "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Last 1
+            if (`$WingetPath) {
+                `$env:WT_SESSION = `$null
+                `$Upgrades = & `$WingetPath upgrade | Out-String
+                `$lines = `$Upgrades -split "``n"
+                
+                `$skipLines = `$true
+                `$appCount = 0
+                foreach (`$line in `$lines) {
+                    if (`$line -match "^----") { `$skipLines = `$false; continue }
+                    if (`$skipLines) { continue }
+                    
+                    `$cols = `$line -split '\s{2,}'
+                    if (`$cols.Count -ge 3) {
+                        `$id = `$cols[1]
+                        if (`$id) {
+                            `$detailedUpdates += "[App] `$id"
+                            `$appCount++
+                        }
+                    }
+                }
+                Send-Log `$jobId "Found `$appCount application updates."
+            }
+            
+            Send-Progress `$jobId 100
+            Send-Log `$jobId "Deep scan finished."
+            
+            `$statusBody = @{
+                status = 'completed'
+                detailedUpdates = `$detailedUpdates
+            } | ConvertTo-Json
+            Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
+        }
     }
 } catch {
     Write-Warning "Failed to fetch or execute jobs"

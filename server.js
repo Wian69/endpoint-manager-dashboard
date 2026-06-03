@@ -44,6 +44,7 @@ app.post('/api/agent/checkin', (req, res) => {
         pending_app_updates: pendingAppUpdates,
         update_list: updateList || [], // Already an array, no JSON.stringify needed
         completed_updates: completedUpdates,
+        detailed_updates: existingDevice?.detailed_updates || [], // Persist detailed scan results
         reboot_required: !!rebootRequired
     });
 
@@ -67,25 +68,36 @@ app.get('/api/agent/jobs/:hostname', (req, res) => {
     res.json({ job });
 });
 
-// Agent report job completion
+// Agent Report Job Status
 app.post('/api/agent/jobs/:jobId/status', (req, res) => {
-    const jobId = parseInt(req.params.jobId);
-    const { status, completedUpdates } = req.body; // 'completed', 'failed'
+    const jobId = parseInt(req.params.jobId, 10);
+    const { status, completedUpdates, detailedUpdates } = req.body;
     
     const job = jobsDB.find(j => j.id === jobId);
-    if (job) {
-        job.status = status;
-        
-        // If the job has completedUpdates, attach them to the device profile permanently
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    
+    job.status = status;
+    
+    // Update the device profile if there's new data
+    const device = devicesDB.get(job.hostname);
+    if (device) {
         if (completedUpdates && Array.isArray(completedUpdates)) {
-            const device = devicesDB.get(job.hostname);
-            if (device) {
-                // Keep only the most recent completed updates, or append them
-                device.completed_updates = completedUpdates;
-                device.last_update_run = new Date().toISOString();
-                devicesDB.set(job.hostname, device);
-            }
+            device.completed_updates = [...new Set([...(device.completed_updates || []), ...completedUpdates])];
         }
+        if (detailedUpdates && Array.isArray(detailedUpdates)) {
+            device.detailed_updates = detailedUpdates;
+            // Also sync the dashboard counts to reflect the deep scan
+            let osCount = 0;
+            let appCount = 0;
+            detailedUpdates.forEach(update => {
+                if (update.startsWith('[App]')) appCount++;
+                if (update.startsWith('[OS]') || update.startsWith('[Driver]')) osCount++;
+            });
+            device.pending_windows_updates = osCount;
+            device.pending_app_updates = appCount;
+        }
+        device.last_update_run = new Date().toISOString();
+        devicesDB.set(job.hostname, device);
     }
     
     res.json({ success: true });
