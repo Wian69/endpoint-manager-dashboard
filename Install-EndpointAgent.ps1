@@ -85,7 +85,21 @@ try {
             `$WingetPath = Get-ChildItem -Path "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Last 1
             if (`$WingetPath) {
                 `$env:WT_SESSION = `$null
-                & `$WingetPath upgrade --all --silent --accept-source-agreements --accept-package-agreements --force
+                `$Exclusions = @("openssl", "Microsoft Edge", "Microsoft Edge Chromium-based")
+                `$Upgrades = & `$WingetPath upgrade | Out-String
+                `$lines = `$Upgrades -split "``n"
+                foreach (`$line in `$lines) {
+                    if (`$line -match ".*? (?<id>[\w\.\-]+) \s+ [\d\.\w]+ \s+ [\d\.\w]+") {
+                        `$appId = `$matches['id']
+                        `$excludeMatch = `$false
+                        foreach (`$ex in `$Exclusions) {
+                            if (`$line -match "(?i)`$ex") { `$excludeMatch = `$true; break }
+                        }
+                        if (-not `$excludeMatch) {
+                            & `$WingetPath upgrade --id `$appId --exact --silent --accept-source-agreements --accept-package-agreements --force
+                        }
+                    }
+                }
             }
 
             # Report completion
