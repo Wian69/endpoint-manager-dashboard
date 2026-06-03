@@ -116,8 +116,16 @@ try {
                 `$UpdateSession = New-Object -ComObject Microsoft.Update.Session
                 `$UpdateSearcher = `$UpdateSession.CreateUpdateSearcher()
                 
+                # Register Microsoft Update Service to ensure drivers and optional extensions are included
+                try {
+                    `$UpdateSvc = New-Object -ComObject Microsoft.Update.ServiceManager
+                    `$UpdateSvc.AddService2("7971f918-a847-4430-9279-4a52d1efe18d", 7, "") | Out-Null
+                    `$UpdateSearcher.ServerSelection = 3
+                    `$UpdateSearcher.ServiceID = "7971f918-a847-4430-9279-4a52d1efe18d"
+                } catch {}
+                
                 Send-Log `$jobId "Searching for all available Windows Updates (including drivers and optional extensions)..."
-                `$SearchResult = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0")
+                `$SearchResult = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0 and (Type='Software' or Type='Driver')")
                 
                 `$winUpdatesCount = `$SearchResult.Updates.Count
                 Send-Log `$jobId "Found `$winUpdatesCount pending Windows Update(s)."
