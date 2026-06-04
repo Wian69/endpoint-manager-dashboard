@@ -21,6 +21,8 @@ const devicesDB = new Map(); // Key: hostname, Value: device object
 const jobsDB = []; // Array of job objects
 let nextJobId = 1;
 
+const azureCache = new Map(); // Key: hostname, Value: array of CVEs
+
 // ==========================================
 // AZURE / DEFENDER VULNERABILITY SYNC
 // ==========================================
@@ -32,15 +34,13 @@ async function syncAzureVulnerabilities() {
 
     if (!tenantId || !clientId || !clientSecret) {
         console.log('[Azure Sync] Missing Azure credentials in .env file. Skipping real API sync and using mock data for testing.');
-        // For testing, just populate dummy data for any connected device
-        devicesDB.forEach((device) => {
-            device.azure_cves = [
-                { id: 'CVE-2023-49210', severity: 'Critical', app: 'Openssl 1.1.1.0' },
-                { id: 'CVE-2026-44574', severity: 'High', app: 'Next 15.4.10.0' },
-                { id: 'CVE-2026-42033', severity: 'High', app: 'Axios 1.13.5.0' },
-                { id: 'CVE-2025-54135', severity: 'High', app: 'Anysphere Cursor 0.50.5.0' }
-            ];
-        });
+        // Populate mock cache
+        azureCache.set('EQNCSLT016', [
+            { id: 'CVE-2023-49210', severity: 'Critical', app: 'Openssl 1.1.1.0' },
+            { id: 'CVE-2026-44574', severity: 'High', app: 'Next 15.4.10.0' },
+            { id: 'CVE-2026-42033', severity: 'High', app: 'Axios 1.13.5.0' },
+            { id: 'CVE-2025-54135', severity: 'High', app: 'Anysphere Cursor 0.50.5.0' }
+        ]);
         return;
     }
 
@@ -68,22 +68,25 @@ async function syncAzureVulnerabilities() {
         });
 
         for (const machine of machinesRes.data.value) {
-            const hostname = machine.computerDnsName ? machine.computerDnsName.split('.')[0] : null;
+            const hostname = machine.computerDnsName ? machine.computerDnsName.split('.')[0].toUpperCase() : null;
             if (!hostname) continue;
 
-            const device = devicesDB.get(hostname) || Array.from(devicesDB.values()).find(d => d.hostname.toLowerCase() === hostname.toLowerCase());
-            if (device) {
-                // 3. Get vulnerabilities for this machine
+            // 3. Get vulnerabilities for this machine
+            try {
                 const vulnRes = await axios.get(`https://api.securitycenter.microsoft.com/api/machines/${machine.id}/vulnerabilities`, {
                     headers: { Authorization: `Bearer ${accessToken}` }
                 });
 
-                device.azure_cves = vulnRes.data.value.map(v => ({
+                const cves = vulnRes.data.value.map(v => ({
                     id: v.id,
                     severity: v.severity,
                     app: 'Vulnerability'
                 }));
-                console.log(`[Azure Sync] Updated ${hostname} with ${device.azure_cves.length} CVEs.`);
+                
+                azureCache.set(hostname, cves);
+                console.log(`[Azure Sync] Cached ${cves.length} CVEs for ${hostname}`);
+            } catch (err) {
+                console.error(`[Azure Sync] Failed to fetch CVEs for ${hostname}`);
             }
         }
     } catch (err) {
@@ -91,8 +94,8 @@ async function syncAzureVulnerabilities() {
     }
 }
 
-// Run sync every 5 minutes
-setInterval(syncAzureVulnerabilities, 5 * 60 * 1000);
+// Run sync every 2 minutes
+setInterval(syncAzureVulnerabilities, 2 * 60 * 1000);
 // Run initial sync 5 seconds after startup
 setTimeout(syncAzureVulnerabilities, 5000);
 
@@ -211,7 +214,12 @@ app.post('/api/agent/jobs/:jobId/progress', (req, res) => {
 // List all devices
 app.get('/api/devices', (req, res) => {
     // Convert Map to array and sort by last_seen descending
-    const devicesArray = Array.from(devicesDB.values()).sort((a, b) => {
+    const devicesArray = Array.from(devicesDB.values()).map(device => {
+        // Merge the Azure Cache into the device payload
+        const upperHost = device.hostname.toUpperCase();
+        device.azure_cves = azureCache.get(upperHost) || [];
+        return device;
+    }).sort((a, b) => {
         return new Date(b.last_seen) - new Date(a.last_seen);
     });
     
