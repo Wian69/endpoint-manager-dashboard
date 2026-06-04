@@ -239,6 +239,30 @@ try {
             & shutdown.exe /r /t 300 /c `$customMessage
         }
 
+        if (`$command -eq 'Run-Script') {
+            Send-Log `$jobId "Job started on `$Hostname."
+            `$scriptBody = `$jobResponse.job.message
+            if ([string]::IsNullOrWhiteSpace(`$scriptBody)) {
+                Send-Log `$jobId "Run-Script received empty body, skipping."
+                Send-Progress `$jobId 100
+            } else {
+                Send-Log `$jobId "Executing Custom Script..."
+                Send-Progress `$jobId 50
+                try {
+                    `$scriptBlock = [ScriptBlock]::Create(`$scriptBody)
+                    `$output = & `$scriptBlock *>&1 | Out-String
+                    Send-Log `$jobId "Script Output:`n`$output"
+                    Send-Progress `$jobId 100
+                } catch {
+                    Send-Log `$jobId "Script Execution Failed: `$(`$_.Exception.Message)"
+                }
+            }
+            
+            Send-Log `$jobId "Job finished."
+            `$statusBody = @{ status = 'completed' } | ConvertTo-Json
+            Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
+        }
+
         if (`$command -eq 'Scan-Updates') {
             Send-Log `$jobId "Job started on `$Hostname. Commencing deep scan..."
             `$detailedUpdates = @()

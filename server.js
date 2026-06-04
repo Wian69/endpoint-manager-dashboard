@@ -36,10 +36,10 @@ async function syncAzureVulnerabilities() {
         console.log('[Azure Sync] Missing Azure credentials in .env file. Skipping real API sync and using mock data for testing.');
         // Populate mock cache
         azureCache.set('EQNCSLT016', [
-            { id: 'CVE-2023-49210', severity: 'Critical', app: 'Openssl 1.1.1.0' },
-            { id: 'CVE-2026-44574', severity: 'High', app: 'Next 15.4.10.0' },
-            { id: 'CVE-2026-42033', severity: 'High', app: 'Axios 1.13.5.0' },
-            { id: 'CVE-2025-54135', severity: 'High', app: 'Anysphere Cursor 0.50.5.0' }
+            { id: 'CVE-2023-49210', severity: 'Critical', app: 'Openssl 1.1.1.0', description: 'Vulnerability in OpenSSL' },
+            { id: 'CVE-2026-44574', severity: 'High', app: 'Next 15.4.10.0', description: 'Next.js rendering vulnerability' },
+            { id: 'CVE-2026-42033', severity: 'High', app: 'Axios 1.13.5.0', description: 'Axios request manipulation vulnerability' },
+            { id: 'CVE-2025-54135', severity: 'High', app: 'Anysphere Cursor 0.50.5.0', description: 'Cursor local execution vulnerability' }
         ]);
         return;
     }
@@ -80,6 +80,7 @@ async function syncAzureVulnerabilities() {
                 const cves = vulnRes.data.value.map(v => ({
                     id: v.id,
                     severity: v.severity,
+                    description: v.description || 'No description provided.',
                     app: 'Vulnerability'
                 }));
                 

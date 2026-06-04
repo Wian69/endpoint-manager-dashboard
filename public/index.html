@@ -63,6 +63,25 @@
         </div>
     </div>
 
+    <!-- Script Modal -->
+    <div id="scriptModal" class="modal" style="display: none;">
+        <div class="modal-content glass-card" style="max-width: 600px; height: auto;">
+            <div class="modal-header">
+                <h2>Run Custom Script</h2>
+                <button class="close-btn" onclick="closeScriptModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.95rem;">
+                    Deploy a custom PowerShell script to the endpoint. This is useful for running targeted remediations or updating user-context apps.
+                </p>
+                <textarea id="scriptBodyInput" rows="10" style="width: 100%; background: var(--bg-dark); color: var(--primary-color); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; font-family: monospace; resize: vertical;" placeholder="# Enter PowerShell commands here..."></textarea>
+            </div>
+            <div class="modal-actions" style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+                <button class="btn-danger" id="executeScriptBtn">Deploy Script</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Log Modal -->
     <div id="logs-modal" class="modal">
         <div class="modal-content glass-card">

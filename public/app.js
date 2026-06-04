@@ -127,9 +127,15 @@ function openDeviceModal(hostname) {
     if (device.azure_cves && device.azure_cves.length > 0) {
         const cveItems = device.azure_cves.map(cve => {
             const color = cve.severity === 'Critical' ? '#ef4444' : (cve.severity === 'High' ? '#f97316' : 'var(--text-secondary)');
-            return `<div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                <span style="color: ${color}; font-weight: 600;">${escapeHtml(cve.id)}</span>
-                <span style="color: var(--text-secondary); text-align:right;">${escapeHtml(cve.app)}</span>
+            return `
+            <div class="cve-accordion" onclick="this.classList.toggle('open')">
+                <div class="cve-accordion-header">
+                    <span style="color: ${color}; font-weight: 600;">${escapeHtml(cve.id)}</span>
+                    <span style="color: var(--text-secondary); font-size: 0.8rem;">Click for details ▼</span>
+                </div>
+                <div class="cve-accordion-body">
+                    ${escapeHtml(cve.description || 'No description provided.')}
+                </div>
             </div>`;
         }).join('');
         
@@ -161,6 +167,9 @@ function openDeviceModal(hostname) {
         <button class="btn-primary" onclick="openLogs('${escapeHtml(device.hostname)}')" style="margin-right: auto;">
             View Logs
         </button>
+        <button class="btn-primary" onclick="openScriptModal('${escapeHtml(device.hostname)}')" style="background-color: #8b5cf6;">
+            Deploy Script
+        </button>
         <button class="btn-primary" onclick="triggerScan('${escapeHtml(device.hostname)}', this)" style="background-color: #3b82f6;">
             Scan Device
         </button>
@@ -177,6 +186,62 @@ function openDeviceModal(hostname) {
 
 function closeDeviceModal() {
     document.getElementById('deviceModal').style.display = 'none';
+}
+
+/* Script Modal Logic */
+let currentScriptHostname = null;
+
+function openScriptModal(hostname) {
+    currentScriptHostname = hostname;
+    document.getElementById('scriptModal').style.display = 'flex';
+    document.getElementById('scriptBodyInput').value = '';
+    
+    document.getElementById('executeScriptBtn').onclick = async function() {
+        const scriptBody = document.getElementById('scriptBodyInput').value.trim();
+        if (!scriptBody) {
+            alert('Please enter a script to execute.');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to deploy this script to ${hostname}? It will run as SYSTEM.`)) return;
+        
+        const btnElement = this;
+        btnElement.textContent = 'Deploying...';
+        btnElement.disabled = true;
+        
+        try {
+            const response = await fetch(`/api/devices/${hostname}/trigger`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: 'Run-Script', message: scriptBody })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                btnElement.textContent = 'Script Deployed';
+                btnElement.style.background = 'var(--success-color)';
+                setTimeout(() => {
+                    closeScriptModal();
+                    openLogs(hostname);
+                }, 1500);
+            } else {
+                throw new Error('Server returned false');
+            }
+        } catch (error) {
+            console.error('Failed to trigger script:', error);
+            btnElement.textContent = 'Error';
+            btnElement.disabled = false;
+        }
+    };
+}
+
+function closeScriptModal() {
+    document.getElementById('scriptModal').style.display = 'none';
+    currentScriptHostname = null;
+    const btn = document.getElementById('executeScriptBtn');
+    btn.textContent = 'Deploy Script';
+    btn.disabled = false;
+    btn.style.background = '';
 }
 
 async function triggerUpdate(hostname, btnElement) {
@@ -302,6 +367,9 @@ function closeModalOnOutsideClick(event) {
     }
     if (event.target === document.getElementById('deviceModal')) {
         closeDeviceModal();
+    }
+    if (event.target === document.getElementById('scriptModal')) {
+        closeScriptModal();
     }
 }
 

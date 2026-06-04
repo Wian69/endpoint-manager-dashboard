@@ -351,3 +351,38 @@ body {
     background: linear-gradient(90deg, #0ea5e9, #10b981);
     transition: width 0.4s ease;
 }
+
+/* Accordion Styles */
+.cve-accordion {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 4px;
+}
+
+.cve-accordion-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    padding: 8px 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 4px;
+}
+
+.cve-accordion-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.cve-accordion-body {
+    display: none;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+    margin-bottom: 4px;
+    line-height: 1.5;
+}
+
+.cve-accordion.open .cve-accordion-body {
+    display: block;
+}
