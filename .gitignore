@@ -1,2 +1,3 @@
 ﻿.env
 test-azure.js
+node_modules/

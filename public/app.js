@@ -244,6 +244,50 @@ function closeScriptModal() {
     btn.style.background = '';
 }
 
+function loadScriptTemplate(type) {
+    const input = document.getElementById('scriptBodyInput');
+    if (type === 'winget') {
+        input.value = `$taskName = "UserWingetUpdateAll"
+$action = New-ScheduledTaskAction -Execute "winget" -Argument "upgrade --all --silent --force --include-unknown --accept-package-agreements --accept-source-agreements"
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(10)
+$principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\\Users" -RunLevel Highest
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force
+
+Write-Output "Successfully scheduled 'Update All' task for the user session."`;
+    } else if (type === 'node') {
+        input.value = `Write-Output "Starting NodeJS Vulnerability Hunt..."
+
+# Define the paths to search (Targeting user profiles to avoid scanning the entire C: drive)
+$SearchPaths = @("C:\\Users\\*\\Documents", "C:\\Users\\*\\Desktop", "C:\\Users\\*\\Downloads", "C:\\Users\\*\\source")
+
+foreach ($path in $SearchPaths) {
+    if (Test-Path $path) {
+        Write-Output "Scanning $path for Node.js projects..."
+        
+        # Find all package.json files (excluding node_modules to save time)
+        $projects = Get-ChildItem -Path $path -Filter "package.json" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch "node_modules" }
+        
+        foreach ($project in $projects) {
+            $projectDir = $project.DirectoryName
+            Write-Output "Found Node project at: $projectDir"
+            Write-Output "Attempting to force-remediate vulnerabilities..."
+            
+            # Navigate to the project and force fix vulnerabilities
+            Set-Location -Path $projectDir
+            try {
+                $auditOutput = npm audit fix --force 2>&1 | Out-String
+                Write-Output "NPM Output for $projectDir :\`n$auditOutput"
+            } catch {
+                Write-Output "Failed to run npm audit in $projectDir : $_"
+            }
+        }
+    }
+}
+
+Write-Output "NodeJS Vulnerability Hunt Complete."`;
+    }
+}
+
 async function triggerUpdate(hostname, btnElement) {
     if (!confirm(`Are you sure you want to force updates on ${hostname}?`)) return;
     

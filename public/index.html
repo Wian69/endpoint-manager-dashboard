@@ -74,6 +74,11 @@
                 <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.95rem;">
                     Deploy a custom PowerShell script to the endpoint. This is useful for running targeted remediations or updating user-context apps.
                 </p>
+                <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <span style="color: var(--text-secondary); font-size: 0.85rem; display: flex; align-items: center; margin-right: 0.5rem;">Quick Templates:</span>
+                    <button class="btn-primary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8;" onclick="loadScriptTemplate('winget')">Update User Apps (Winget)</button>
+                    <button class="btn-primary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981;" onclick="loadScriptTemplate('node')">Hunt NodeJS Vulnerabilities</button>
+                </div>
                 <textarea id="scriptBodyInput" rows="10" style="width: 100%; background: var(--bg-dark); color: var(--primary-color); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; font-family: monospace; resize: vertical;" placeholder="# Enter PowerShell commands here..."></textarea>
             </div>
             <div class="modal-actions" style="margin-top: 1rem; display: flex; justify-content: flex-end;">
