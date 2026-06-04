@@ -264,11 +264,11 @@ foreach ($path in $SearchPaths) {
     if (Test-Path $path) {
         Write-Output "Scanning $path for Node.js projects..."
         
-        # Find all package.json files (excluding node_modules to save time)
-        $projects = Get-ChildItem -Path $path -Filter "package.json" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch "node_modules" }
+        # Find package.json files but skip traversing into node_modules entirely to save time
+        $projects = Get-ChildItem -Path $path -Directory -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch "node_modules" -and (Test-Path "$($_.FullName)\\package.json") }
         
         foreach ($project in $projects) {
-            $projectDir = $project.DirectoryName
+            $projectDir = $project.FullName
             Write-Output "Found Node project at: $projectDir"
             Write-Output "Attempting to force-remediate vulnerabilities..."
             
