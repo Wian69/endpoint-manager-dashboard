@@ -10,6 +10,7 @@ async function refreshDevices() {
     try {
         const response = await fetch('/api/devices');
         const devices = await response.json();
+        window.globalDevices = devices; // Store globally for modal access
         renderDevices(devices);
         updateStats(devices);
     } catch (error) {
@@ -44,6 +45,7 @@ function renderDevices(devices) {
         
         const card = document.createElement('div');
         card.className = 'device-card glass-card';
+        card.onclick = () => openDeviceModal(device.hostname);
         
         // Build tags HTML
         let tagsHtml = '';
@@ -63,57 +65,6 @@ function renderDevices(devices) {
             tagsHtml += `<span class="tag" style="background-color: var(--warning-color); color: #000;">Reboot Pending</span>`;
         }
 
-        // App list details
-        let appsListHtml = '';
-        if (device.update_list && device.update_list.length > 0) {
-            const apps = device.update_list.slice(0, 3).join(', ');
-            const more = device.update_list.length > 3 ? ` +${device.update_list.length - 3} more` : '';
-            appsListHtml = `<p><strong>Pending Apps:</strong> ${apps}${more}</p>`;
-        }
-
-        // Completed updates list
-        let completedHtml = '';
-        if (device.completed_updates && device.completed_updates.length > 0) {
-            const completed = device.completed_updates.join(', ');
-            const timeStr = new Date(device.last_update_run).toLocaleTimeString();
-            completedHtml = `<div class="completed-updates" style="margin-top:0.5rem; padding: 0.5rem; background:rgba(16,185,129,0.1); border-left:3px solid var(--success-color); border-radius:4px;">
-                <p style="margin:0; font-size:0.85rem;"><strong>✓ Completed at ${timeStr}:</strong></p>
-                <p style="margin:0; font-size:0.85rem; color:var(--text-secondary);">${completed}</p>
-            </div>`;
-        }
-
-        // Detailed Scan Results
-        let detailedScanHtml = '';
-        if (device.detailed_updates && device.detailed_updates.length > 0) {
-            const listItems = device.detailed_updates.map(u => `<li style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 0.25rem;">${escapeHtml(u)}</li>`).join('');
-            detailedScanHtml = `<div class="detailed-scan" style="margin-top:0.75rem; padding: 0.5rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px;">
-                <p style="margin:0 0 0.5rem 0; font-size:0.85rem; font-weight:600;">Missing Agent Updates:</p>
-                <ul style="margin:0; padding-left:1rem;">${listItems}</ul>
-            </div>`;
-        }
-
-        // Azure CVE Results
-        let azureCveHtml = '';
-        if (device.azure_cves && device.azure_cves.length > 0) {
-            const cveItems = device.azure_cves.slice(0, 5).map(cve => {
-                const color = cve.severity === 'Critical' ? '#ef4444' : (cve.severity === 'High' ? '#f97316' : 'var(--text-secondary)');
-                return `<div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                    <span style="color: ${color}; font-weight: 600;">${escapeHtml(cve.id)}</span>
-                    <span style="color: var(--text-secondary); text-align:right;">${escapeHtml(cve.app)}</span>
-                </div>`;
-            }).join('');
-            
-            const more = device.azure_cves.length > 5 ? `<div style="text-align:center; font-size: 0.8rem; color: var(--primary-color); margin-top: 5px;">+ ${device.azure_cves.length - 5} more vulnerabilities</div>` : '';
-            
-            azureCveHtml = `<div class="azure-cves" style="margin-top:0.75rem; padding: 0.5rem; background:rgba(239, 68, 68, 0.05); border:1px solid rgba(239, 68, 68, 0.2); border-radius:4px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
-                    <p style="margin:0; font-size:0.85rem; font-weight:600; color: #ef4444;"><span style="margin-right: 5px;">🛡️</span>Defender Vulnerabilities</p>
-                </div>
-                ${cveItems}
-                ${more}
-            </div>`;
-        }
-
         card.innerHTML = `
             <div>
                 <div class="device-header">
@@ -125,33 +76,107 @@ function renderDevices(devices) {
                 <div class="device-info">
                     <p><strong>OS:</strong> ${escapeHtml(device.os_version)}</p>
                     <p><strong>Last Check-in:</strong> ${lastSeen.toLocaleTimeString()}</p>
-                    ${appsListHtml}
-                    ${azureCveHtml}
-                    ${detailedScanHtml}
-                    ${completedHtml}
                 </div>
                 <div class="update-tags">
                     ${tagsHtml}
                 </div>
             </div>
-            <div class="device-actions" style="gap: 1rem;">
-                <button class="btn-primary" onclick="openLogs('${escapeHtml(device.hostname)}')">
-                    View Logs
-                </button>
-                <button class="btn-primary" onclick="triggerScan('${escapeHtml(device.hostname)}', this)" style="background-color: #3b82f6;">
-                    Scan Device
-                </button>
-                <button class="btn-danger" onclick="triggerUpdate('${escapeHtml(device.hostname)}', this)" ${totalPending === 0 ? 'disabled style="opacity:0.5"' : ''}>
-                    Force Updates
-                </button>
-                <button class="btn-danger" style="background-color: var(--warning-color); color: #000;" onclick="triggerRestart('${escapeHtml(device.hostname)}', this)">
-                    Restart
-                </button>
+            <div style="margin-top: 10px; font-size: 0.85rem; color: var(--primary-color); text-align: center;">
+                Click to view details & actions
             </div>
         `;
         
         grid.appendChild(card);
     });
+}
+
+function openDeviceModal(hostname) {
+    const device = window.globalDevices.find(d => d.hostname === hostname);
+    if (!device) return;
+
+    document.getElementById('modalDeviceName').textContent = device.hostname;
+    const body = document.getElementById('modalDeviceBody');
+    const actions = document.getElementById('modalDeviceActions');
+    
+    const totalPending = (device.pending_windows_updates || 0) + (device.pending_app_updates || 0);
+
+    // Build Detailed Body HTML
+    let bodyHtml = '';
+
+    // App list details
+    if (device.update_list && device.update_list.length > 0) {
+        bodyHtml += `<div style="margin-bottom: 1rem;">
+            <h4 style="margin-bottom: 0.5rem; color: var(--primary-color);">Pending App Updates</h4>
+            <ul style="padding-left: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                ${device.update_list.map(u => `<li>${escapeHtml(u)}</li>`).join('')}
+            </ul>
+        </div>`;
+    }
+
+    // Detailed Scan Results
+    if (device.detailed_updates && device.detailed_updates.length > 0) {
+        bodyHtml += `<div style="margin-bottom: 1rem; padding: 1rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px;">
+            <h4 style="margin-bottom: 0.5rem;">Missing Agent Updates</h4>
+            <ul style="padding-left: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                ${device.detailed_updates.map(u => `<li style="margin-bottom: 0.25rem;">${escapeHtml(u)}</li>`).join('')}
+            </ul>
+        </div>`;
+    }
+
+    // Azure CVE Results
+    if (device.azure_cves && device.azure_cves.length > 0) {
+        const cveItems = device.azure_cves.map(cve => {
+            const color = cve.severity === 'Critical' ? '#ef4444' : (cve.severity === 'High' ? '#f97316' : 'var(--text-secondary)');
+            return `<div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                <span style="color: ${color}; font-weight: 600;">${escapeHtml(cve.id)}</span>
+                <span style="color: var(--text-secondary); text-align:right;">${escapeHtml(cve.app)}</span>
+            </div>`;
+        }).join('');
+        
+        bodyHtml += `<div style="margin-bottom: 1rem; padding: 1rem; background:rgba(239, 68, 68, 0.05); border:1px solid rgba(239, 68, 68, 0.2); border-radius:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
+                <h4 style="margin:0; color: #ef4444;"><span style="margin-right: 5px;">🛡️</span>Defender Vulnerabilities (${device.azure_cves.length})</h4>
+            </div>
+            ${cveItems}
+        </div>`;
+    }
+
+    // Completed Updates
+    if (device.completed_updates && device.completed_updates.length > 0) {
+        const timeStr = new Date(device.last_update_run).toLocaleTimeString();
+        bodyHtml += `<div style="margin-top: 1rem; padding: 1rem; background:rgba(16,185,129,0.1); border-left:3px solid var(--success-color); border-radius:4px;">
+            <h4 style="margin:0 0 0.5rem 0; font-size:0.9rem; color: var(--success-color);">✓ Completed at ${timeStr}</h4>
+            <p style="margin:0; font-size:0.9rem; color:var(--text-secondary);">${escapeHtml(device.completed_updates.join(', '))}</p>
+        </div>`;
+    }
+
+    if (bodyHtml === '') {
+        bodyHtml = '<p style="text-align:center; color: var(--text-secondary); padding: 2rem;">Device is fully up to date and secure.</p>';
+    }
+
+    body.innerHTML = bodyHtml;
+
+    // Action Buttons
+    actions.innerHTML = `
+        <button class="btn-primary" onclick="openLogs('${escapeHtml(device.hostname)}')" style="margin-right: auto;">
+            View Logs
+        </button>
+        <button class="btn-primary" onclick="triggerScan('${escapeHtml(device.hostname)}', this)" style="background-color: #3b82f6;">
+            Scan Device
+        </button>
+        <button class="btn-danger" onclick="triggerUpdate('${escapeHtml(device.hostname)}', this)" ${totalPending === 0 ? 'disabled style="opacity:0.5"' : ''}>
+            Force Updates
+        </button>
+        <button class="btn-danger" style="background-color: var(--warning-color); color: #000;" onclick="triggerRestart('${escapeHtml(device.hostname)}', this)">
+            Restart
+        </button>
+    `;
+
+    document.getElementById('deviceModal').style.display = 'flex';
+}
+
+function closeDeviceModal() {
+    document.getElementById('deviceModal').style.display = 'none';
 }
 
 async function triggerUpdate(hostname, btnElement) {
@@ -275,7 +300,13 @@ function closeModalOnOutsideClick(event) {
     if (event.target === document.getElementById('logs-modal')) {
         closeLogs();
     }
+    if (event.target === document.getElementById('deviceModal')) {
+        closeDeviceModal();
+    }
 }
+
+// Ensure click outside works for both modals
+window.onclick = closeModalOnOutsideClick;
 
 function saveSettings() {
     const msg = document.getElementById('restart-msg').value;
