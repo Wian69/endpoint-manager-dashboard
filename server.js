@@ -79,9 +79,9 @@ async function syncAzureVulnerabilities() {
                 });
 
                 device.azure_cves = vulnRes.data.value.map(v => ({
-                    id: v.cveId,
+                    id: v.id,
                     severity: v.severity,
-                    app: v.productName
+                    app: 'Vulnerability'
                 }));
                 console.log(`[Azure Sync] Updated ${hostname} with ${device.azure_cves.length} CVEs.`);
             }
