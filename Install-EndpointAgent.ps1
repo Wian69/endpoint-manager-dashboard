@@ -85,7 +85,7 @@ function Get-PendingUpdates {
 } | ConvertTo-Json
 
 try {
-    Invoke-RestMethod -Uri "`$ServerUrl/api/agent/checkin" -Method Post -Body `$checkinBody -ContentType "application/json" -TimeoutSec 10
+    Invoke-RestMethod -Uri "`$ServerUrl/api/agent/checkin" -Method Post -Body `$checkinBody -ContentType "application/json" -TimeoutSec 60
 } catch {
     Write-Warning "Failed to check in with server"
 }
@@ -94,7 +94,7 @@ try {
 function Send-Log (`$jobId, `$message) {
     `$logBody = @{ log = `$message } | ConvertTo-Json
     try {
-        Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/log" -Method Post -Body `$logBody -ContentType "application/json" -TimeoutSec 5
+        Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/log" -Method Post -Body `$logBody -ContentType "application/json" -TimeoutSec 60
     } catch {}
 }
 
@@ -102,13 +102,13 @@ function Send-Log (`$jobId, `$message) {
 function Send-Progress (`$jobId, `$progress) {
     `$progBody = @{ progress = `$progress } | ConvertTo-Json
     try {
-        Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/progress" -Method Post -Body `$progBody -ContentType "application/json" -TimeoutSec 5
+        Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/progress" -Method Post -Body `$progBody -ContentType "application/json" -TimeoutSec 60
     } catch {}
 }
 
 # 2. Check for jobs
 try {
-    `$jobResponse = Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$Hostname" -Method Get -TimeoutSec 10
+    `$jobResponse = Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$Hostname" -Method Get -TimeoutSec 60
     if (`$jobResponse.job) {
         `$jobId = `$jobResponse.job.id
         `$command = `$jobResponse.job.command
@@ -124,15 +124,7 @@ try {
                 `$UpdateSession = New-Object -ComObject Microsoft.Update.Session
                 `$UpdateSearcher = `$UpdateSession.CreateUpdateSearcher()
                 
-                # Register Microsoft Update Service to ensure drivers and optional extensions are included
-                try {
-                    `$UpdateSvc = New-Object -ComObject Microsoft.Update.ServiceManager
-                    `$UpdateSvc.AddService2("7971f918-a847-4430-9279-4a52d1efe18d", 7, "") | Out-Null
-                    `$UpdateSearcher.ServerSelection = 3
-                    `$UpdateSearcher.ServiceID = "7971f918-a847-4430-9279-4a52d1efe18d"
-                } catch {}
-                
-                Send-Log `$jobId "Searching for all available Windows Updates (including drivers and optional extensions)..."
+                # Perform standard driver/OS searches using the system's default update server (e.g. Intune/WSUS)
                 `$SearchResult1 = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0")
                 `$SearchResult2 = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0 and Type='Driver'")
                 
@@ -258,13 +250,7 @@ try {
             try {
                 `$UpdateSession = New-Object -ComObject Microsoft.Update.Session
                 `$UpdateSearcher = `$UpdateSession.CreateUpdateSearcher()
-                try {
-                    `$UpdateSvc = New-Object -ComObject Microsoft.Update.ServiceManager
-                    `$UpdateSvc.AddService2("7971f918-a847-4430-9279-4a52d1efe18d", 7, "") | Out-Null
-                    `$UpdateSearcher.ServerSelection = 3
-                    `$UpdateSearcher.ServiceID = "7971f918-a847-4430-9279-4a52d1efe18d"
-                } catch {}
-                
+                # Perform standard driver/OS searches using the system's default update server
                 `$SearchResult1 = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0")
                 `$SearchResult2 = `$UpdateSearcher.Search("IsInstalled=0 and IsHidden=0 and Type='Driver'")
                 

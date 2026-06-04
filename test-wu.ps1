@@ -1,16 +1,14 @@
-$u = New-Object -ComObject Microsoft.Update.Session
-$s = $u.CreateUpdateSearcher()
+$UpdateSession = New-Object -ComObject Microsoft.Update.Session
+$UpdateSearcher = $UpdateSession.CreateUpdateSearcher()
 
+Write-Output "--- IsInstalled=0 and BrowseOnly=1 ---"
 try {
-    $r = $s.Search("IsInstalled=0 and Type='Driver'")
-    Write-Output "Driver OK: $($r.Updates.Count)"
-} catch {
-    Write-Output "Driver Failed: $($_.Exception.Message)"
-}
+    $res1 = $UpdateSearcher.Search("IsInstalled=0 and BrowseOnly=1")
+    Write-Output "Optional: $($res1.Updates.Count)"
+} catch { Write-Output "Failed: $($_.Exception.Message)" }
 
+Write-Output "--- IsInstalled=0 and AutoSelectOnWebSites=0 ---"
 try {
-    $r2 = $s.Search("IsInstalled=0 and (Type='Software' or Type='Driver')")
-    Write-Output "OR OK: $($r2.Updates.Count)"
-} catch {
-    Write-Output "OR Failed: $($_.Exception.Message)"
-}
+    $res2 = $UpdateSearcher.Search("IsInstalled=0 and AutoSelectOnWebSites=0")
+    Write-Output "Optional: $($res2.Updates.Count)"
+} catch { Write-Output "Failed: $($_.Exception.Message)" }
