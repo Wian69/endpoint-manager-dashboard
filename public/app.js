@@ -50,10 +50,15 @@ function renderDevices(devices) {
         if (totalPending > 0) {
             if (device.pending_windows_updates > 0) tagsHtml += `<span class="tag">${device.pending_windows_updates} OS Updates</span>`;
             if (device.pending_app_updates > 0) tagsHtml += `<span class="tag">${device.pending_app_updates} App Updates</span>`;
-        } else {
+        } else if (!device.azure_cves || device.azure_cves.length === 0) {
             tagsHtml = `<span class="tag safe">Up to Date</span>`;
         }
         
+        if (device.azure_cves && device.azure_cves.length > 0) {
+            const criticalCount = device.azure_cves.filter(c => c.severity === 'Critical').length;
+            tagsHtml += `<span class="tag" style="background-color: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: #ef4444;">${device.azure_cves.length} Vuln(s) (${criticalCount} Critical)</span>`;
+        }
+
         if (device.reboot_required) {
             tagsHtml += `<span class="tag" style="background-color: var(--warning-color); color: #000;">Reboot Pending</span>`;
         }
@@ -82,8 +87,30 @@ function renderDevices(devices) {
         if (device.detailed_updates && device.detailed_updates.length > 0) {
             const listItems = device.detailed_updates.map(u => `<li style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 0.25rem;">${escapeHtml(u)}</li>`).join('');
             detailedScanHtml = `<div class="detailed-scan" style="margin-top:0.75rem; padding: 0.5rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px;">
-                <p style="margin:0 0 0.5rem 0; font-size:0.85rem; font-weight:600;">Missing Vulnerabilities & Drivers:</p>
+                <p style="margin:0 0 0.5rem 0; font-size:0.85rem; font-weight:600;">Missing Agent Updates:</p>
                 <ul style="margin:0; padding-left:1rem;">${listItems}</ul>
+            </div>`;
+        }
+
+        // Azure CVE Results
+        let azureCveHtml = '';
+        if (device.azure_cves && device.azure_cves.length > 0) {
+            const cveItems = device.azure_cves.slice(0, 5).map(cve => {
+                const color = cve.severity === 'Critical' ? '#ef4444' : (cve.severity === 'High' ? '#f97316' : 'var(--text-secondary)');
+                return `<div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                    <span style="color: ${color}; font-weight: 600;">${escapeHtml(cve.id)}</span>
+                    <span style="color: var(--text-secondary); text-align:right;">${escapeHtml(cve.app)}</span>
+                </div>`;
+            }).join('');
+            
+            const more = device.azure_cves.length > 5 ? `<div style="text-align:center; font-size: 0.8rem; color: var(--primary-color); margin-top: 5px;">+ ${device.azure_cves.length - 5} more vulnerabilities</div>` : '';
+            
+            azureCveHtml = `<div class="azure-cves" style="margin-top:0.75rem; padding: 0.5rem; background:rgba(239, 68, 68, 0.05); border:1px solid rgba(239, 68, 68, 0.2); border-radius:4px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+                    <p style="margin:0; font-size:0.85rem; font-weight:600; color: #ef4444;"><span style="margin-right: 5px;">🛡️</span>Defender Vulnerabilities</p>
+                </div>
+                ${cveItems}
+                ${more}
             </div>`;
         }
 
@@ -99,6 +126,7 @@ function renderDevices(devices) {
                     <p><strong>OS:</strong> ${escapeHtml(device.os_version)}</p>
                     <p><strong>Last Check-in:</strong> ${lastSeen.toLocaleTimeString()}</p>
                     ${appsListHtml}
+                    ${azureCveHtml}
                     ${detailedScanHtml}
                     ${completedHtml}
                 </div>
