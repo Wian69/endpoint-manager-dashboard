@@ -20,7 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "1.1"
+`$AgentVersion = "1.2"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -45,6 +45,10 @@ function Get-PendingUpdates {
             `$Upgrades = & `$WingetPath upgrade --accept-source-agreements | Out-String
             `$lines = `$Upgrades -split "``n"
             `$skipLines = `$true
+            
+            # Apps to ignore due to broken WinGet installers or their own auto-updaters
+            `$IgnoreApps = @("Microsoft.Edge", "Google.Chrome", "Sonos", "Microsoft.DotNet", "ShiningLight.OpenSSL", "RARLab.WinRAR", "AnyDesk.AnyDesk", "Oracle.Java", "DominikReichl.KeePass", "Microsoft.WindowsAppRuntime", "Microsoft.VCLibs", "Mozilla.Firefox", "Adobe.Acrobat", "EPSON")
+
             foreach (`$line in `$lines) {
                 if (`$line -match "^----") { `$skipLines = `$false; continue }
                 if (`$skipLines) { continue }
@@ -53,8 +57,17 @@ function Get-PendingUpdates {
                 if (`$cols.Count -ge 3) {
                     `$id = `$cols[1]
                     if (`$id) {
-                        `$appUpdates++
-                        `$updateList += `$id
+                        `$shouldSkip = `$false
+                        foreach (`$ignore in `$IgnoreApps) {
+                            if (`$id -match `$ignore) { `$shouldSkip = `$true; break }
+                        }
+                        # Also skip broken version-only outputs
+                        if (`$id -match '^\d+\.\d+') { `$shouldSkip = `$true }
+
+                        if (-not `$shouldSkip) {
+                            `$appUpdates++
+                            `$updateList += `$id
+                        }
                     }
                 }
             }
@@ -175,12 +188,31 @@ try {
                 `$wingetOutput = & `$WingetPath upgrade --all --silent --accept-source-agreements --accept-package-agreements --force --include-unknown | Out-String
                 Send-Log `$jobId "WinGet Output:`n`$wingetOutput"
                 
-                Send-Progress `$jobId 100
+                Send-Progress `$jobId 80
                 `$completedUpdates += "All Winget Apps"
             } else {
                 Send-Log `$jobId "WinGet executable not found on this device."
-                Send-Progress `$jobId 100
+                Send-Progress `$jobId 80
             }
+
+            # Start NodeJS Vulnerability Hunt
+            Send-Log `$jobId "Hunting for NodeJS Developer Vulnerabilities (CVEs)..."
+            `$SearchPaths = @("C:\Users\*\Documents", "C:\Users\*\Desktop", "C:\Users\*\Downloads", "C:\Users\*\source")
+            foreach (`$path in `$SearchPaths) {
+                if (Test-Path `$path) {
+                    `$projects = Get-ChildItem -Path `$path -Directory -Recurse -ErrorAction SilentlyContinue | Where-Object { `$_.FullName -notmatch "node_modules" -and (Test-Path "`$(`$_.FullName)\package.json") }
+                    foreach (`$project in `$projects) {
+                        `$projectDir = `$project.FullName
+                        try {
+                            Send-Log `$jobId "Patching NPM vulnerabilities in `$projectDir"
+                            Set-Location -Path `$projectDir
+                            `$null = npm audit fix --force 2>&1
+                        } catch {}
+                    }
+                }
+            }
+            Send-Log `$jobId "NodeJS Vulnerability Hunt Complete."
+            Send-Progress `$jobId 100
 
             # Report completion
             Send-Log `$jobId "Job finished."
