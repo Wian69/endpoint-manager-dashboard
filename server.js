@@ -21,6 +21,8 @@ const devicesDB = new Map(); // Key: hostname, Value: device object
 const jobsDB = []; // Array of job objects
 let nextJobId = 1;
 
+const TARGET_AGENT_VERSION = "1.1";
+
 const azureCache = new Map(); // Key: hostname, Value: array of CVEs
 
 // ==========================================
@@ -104,9 +106,14 @@ setTimeout(syncAzureVulnerabilities, 5000);
 // AGENT ROUTES (Called by the endpoints)
 // ==========================================
 
+// Serve the installer file for OTA updates
+app.get('/api/agent/installer', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Install-EndpointAgent.ps1'));
+});
+
 // Agent Check-in
 app.post('/api/agent/checkin', (req, res) => {
-    const { hostname, osVersion, pendingWindowsUpdates, pendingAppUpdates, updateList, rebootRequired } = req.body;
+    const { hostname, agentVersion, osVersion, pendingWindowsUpdates, pendingAppUpdates, updateList, rebootRequired } = req.body;
     
     if (!hostname) return res.status(400).json({ error: 'Hostname is required' });
 
@@ -119,15 +126,55 @@ app.post('/api/agent/checkin', (req, res) => {
     // Update or insert device
     devicesDB.set(hostname, {
         hostname,
+        agent_version: agentVersion || "1.0",
         os_version: osVersion,
         last_seen: now,
         pending_windows_updates: pendingWindowsUpdates,
         pending_app_updates: pendingAppUpdates,
-        update_list: updateList || [], // Already an array, no JSON.stringify needed
+        update_list: updateList || [],
         completed_updates: completedUpdates,
-        detailed_updates: existingDevice?.detailed_updates || [], // Persist detailed scan results
+        detailed_updates: existingDevice?.detailed_updates || [],
         reboot_required: !!rebootRequired
     });
+
+    const activeJob = jobsDB.find(j => j.hostname === hostname && (j.status === 'pending' || j.status === 'in_progress'));
+
+    // OTA Update logic: Automatically queue update if agent version is mismatched
+    if (!agentVersion || agentVersion !== TARGET_AGENT_VERSION) {
+        if (!activeJob) {
+            console.log(`[OTA Update] Automatically queueing Update-Agent for ${hostname} (Current: ${agentVersion || '1.0'}, Target: ${TARGET_AGENT_VERSION})`);
+            jobsDB.push({
+                id: nextJobId++,
+                hostname,
+                command: 'Update-Agent',
+                message: 'Automated OTA update triggered by server policy.',
+                status: 'pending',
+                logs: [],
+                progress: 0,
+                created_at: new Date().toISOString()
+            });
+        }
+        return res.json({ success: true }); // Prevent queueing Force-Updates at the same time
+    }
+
+    // Auto-patching logic: Automatically queue updates if pending updates are detected
+    const totalPending = (pendingWindowsUpdates || 0) + (pendingAppUpdates || 0);
+    if (totalPending > 0 && !rebootRequired) {
+        // Only queue if there isn't already a pending or running job for this device
+        if (!activeJob) {
+            console.log(`[Auto-Patch] Automatically queueing Force-Updates for ${hostname} (${totalPending} updates pending)`);
+            jobsDB.push({
+                id: nextJobId++,
+                hostname,
+                command: 'Force-Updates',
+                message: 'Automated remediation triggered by system policy.',
+                status: 'pending',
+                logs: [],
+                progress: 0,
+                created_at: new Date().toISOString()
+            });
+        }
+    }
 
     res.json({ success: true });
 });
@@ -214,14 +261,14 @@ app.post('/api/agent/jobs/:jobId/progress', (req, res) => {
 
 // List all devices
 app.get('/api/devices', (req, res) => {
-    // Convert Map to array and sort by last_seen descending
+    // Convert Map to array and sort alphabetically by hostname so they stay in one place
     const devicesArray = Array.from(devicesDB.values()).map(device => {
         // Merge the Azure Cache into the device payload
         const upperHost = device.hostname.toUpperCase();
         device.azure_cves = azureCache.get(upperHost) || [];
         return device;
     }).sort((a, b) => {
-        return new Date(b.last_seen) - new Date(a.last_seen);
+        return a.hostname.localeCompare(b.hostname);
     });
     
     res.json(devicesArray);

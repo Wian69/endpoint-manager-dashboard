@@ -20,6 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
+`$AgentVersion = "1.1"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -41,7 +42,7 @@ function Get-PendingUpdates {
         `$WingetPath = Get-ChildItem -Path "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Last 1
         if (`$WingetPath) {
             `$env:WT_SESSION = `$null
-            `$Upgrades = & `$WingetPath upgrade | Out-String
+            `$Upgrades = & `$WingetPath upgrade --accept-source-agreements | Out-String
             `$lines = `$Upgrades -split "``n"
             `$skipLines = `$true
             foreach (`$line in `$lines) {
@@ -77,6 +78,7 @@ function Get-PendingUpdates {
     `$updates = Get-PendingUpdates
     `$checkinBody = @{
     hostname = `$Hostname
+    agentVersion = `$AgentVersion
     osVersion = `$OSVersion
     pendingWindowsUpdates = `$updates.windows
     pendingAppUpdates = `$updates.apps
@@ -167,48 +169,14 @@ try {
             `$WingetPath = Get-ChildItem -Path "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Last 1
             
             if (`$WingetPath) {
-                Send-Log `$jobId "WinGet found. Scanning for available upgrades..."
+                Send-Log `$jobId "WinGet found. Running automated upgrade for all applicable packages..."
                 `$env:WT_SESSION = `$null
-                `$Upgrades = & `$WingetPath upgrade | Out-String
-                `$lines = `$Upgrades -split "``n"
                 
-                `$appIdsToUpdate = @()
-                `$skipLines = `$true
-                foreach (`$line in `$lines) {
-                    if (`$line -match "^----") { `$skipLines = `$false; continue }
-                    if (`$skipLines) { continue }
-                    
-                    `$cols = `$line -split '\s{2,}'
-                    if (`$cols.Count -ge 3) {
-                        `$id = `$cols[1]
-                        if (`$id) {
-                            `$appIdsToUpdate += `$id
-                        }
-                    }
-                }
+                `$wingetOutput = & `$WingetPath upgrade --all --silent --accept-source-agreements --accept-package-agreements --force --include-unknown | Out-String
+                Send-Log `$jobId "WinGet Output:`n`$wingetOutput"
                 
-                `$completedUpdates = @()
-                `$totalApps = `$appIdsToUpdate.Count
-                if (`$totalApps -gt 0) {
-                    Send-Log `$jobId "Found `$totalApps applications to upgrade."
-                    `$currentApp = 0
-                    
-                    foreach (`$appId in `$appIdsToUpdate) {
-                        `$currentApp++
-                        `$percentage = [math]::Round((`$currentApp / `$totalApps) * 100)
-                        
-                        Send-Log `$jobId "Upgrading `$appId (App `$currentApp of `$totalApps) - `$percentage% Complete"
-                        Send-Progress `$jobId `$percentage
-                        
-                        `$wingetOutput = & `$WingetPath upgrade --id `"`$appId`" --exact --silent --accept-source-agreements --accept-package-agreements --force --include-unknown | Out-String
-                        Send-Log `$jobId "Output for `$appId :`n`$wingetOutput"
-                        
-                        `$completedUpdates += `$appId
-                    }
-                } else {
-                    Send-Log `$jobId "No third-party applications require upgrading."
-                    Send-Progress `$jobId 100
-                }
+                Send-Progress `$jobId 100
+                `$completedUpdates += "All Winget Apps"
             } else {
                 Send-Log `$jobId "WinGet executable not found on this device."
                 Send-Progress `$jobId 100
@@ -263,6 +231,34 @@ try {
             Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
         }
 
+        if (`$command -eq 'Update-Agent') {
+            Send-Log `$jobId "Job started on `$Hostname. Commencing OTA Agent Update..."
+            Send-Progress `$jobId 10
+            `$UpdateUrl = "`$ServerUrl/api/agent/installer"
+            `$TempScript = "`$env:TEMP\Update-EndpointAgent.ps1"
+            
+            try {
+                Send-Log `$jobId "Downloading latest agent from `$UpdateUrl"
+                Invoke-WebRequest -Uri `$UpdateUrl -OutFile `$TempScript -UseBasicParsing
+                Send-Progress `$jobId 50
+                
+                Send-Log `$jobId "Applying new agent logic..."
+                `$output = & powershell.exe -ExecutionPolicy Bypass -File `$TempScript *>&1 | Out-String
+                Send-Log `$jobId "Update applied successfully.`n`$output"
+                Send-Progress `$jobId 100
+                
+                `$statusBody = @{ status = 'completed' } | ConvertTo-Json
+                Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
+                
+                # Exit gracefully to let the new Scheduled Task run next minute
+                exit
+            } catch {
+                Send-Log `$jobId "Failed to update agent: `$(`$_.Exception.Message)"
+                `$statusBody = @{ status = 'failed' } | ConvertTo-Json
+                Invoke-RestMethod -Uri "`$ServerUrl/api/agent/jobs/`$jobId/status" -Method Post -Body `$statusBody -ContentType "application/json"
+            }
+        }
+
         if (`$command -eq 'Scan-Updates') {
             Send-Log `$jobId "Job started on `$Hostname. Commencing deep scan..."
             `$detailedUpdates = @()
@@ -299,7 +295,7 @@ try {
             `$WingetPath = Get-ChildItem -Path "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -Last 1
             if (`$WingetPath) {
                 `$env:WT_SESSION = `$null
-                `$Upgrades = & `$WingetPath upgrade | Out-String
+                `$Upgrades = & `$WingetPath upgrade --accept-source-agreements | Out-String
                 `$lines = `$Upgrades -split "``n"
                 
                 `$skipLines = `$true
