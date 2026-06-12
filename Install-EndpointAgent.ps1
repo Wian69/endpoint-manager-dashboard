@@ -20,7 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "1.3"
+`$AgentVersion = "1.4"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -225,6 +225,19 @@ try {
                     Send-Log `$jobId "Failed to trigger MS Office updates."
                 }
             }
+
+            # Start Browser Silent Updates (Chrome & Edge)
+            Send-Log `$jobId "Triggering background updaters for Google Chrome and Microsoft Edge..."
+            `$ChromeUpdater = "C:\Program Files (x86)\Google\Update\GoogleUpdate.exe"
+            `$EdgeUpdater = "C:\Program Files (x86)\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe"
+            
+            if (Test-Path `$ChromeUpdater) {
+                try { Start-Process -FilePath `$ChromeUpdater -ArgumentList "/ua /installsource scheduler" -Wait -WindowStyle Hidden } catch {}
+            }
+            if (Test-Path `$EdgeUpdater) {
+                try { Start-Process -FilePath `$EdgeUpdater -ArgumentList "/ua /installsource scheduler" -Wait -WindowStyle Hidden } catch {}
+            }
+            Send-Log `$jobId "Browser update sequences triggered."
 
             Send-Progress `$jobId 100
 

@@ -21,7 +21,7 @@ const devicesDB = new Map(); // Key: hostname, Value: device object
 const jobsDB = []; // Array of job objects
 let nextJobId = 1;
 
-const TARGET_AGENT_VERSION = "1.3";
+const TARGET_AGENT_VERSION = "1.4";
 
 const azureCache = new Map(); // Key: hostname, Value: array of CVEs
 
