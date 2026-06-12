@@ -20,7 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "1.4"
+`$AgentVersion = "1.5"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -238,6 +238,32 @@ try {
                 try { Start-Process -FilePath `$EdgeUpdater -ArgumentList "/ua /installsource scheduler" -Wait -WindowStyle Hidden } catch {}
             }
             Send-Log `$jobId "Browser update sequences triggered."
+
+            # Ghost/Abandoned AppData Installation Hunter
+            Send-Log `$jobId "Hunting for Ghost/Abandoned browser installations in User folders..."
+            `$UserPaths = Get-ChildItem -Path "C:\Users" -Directory -ErrorAction SilentlyContinue
+            foreach (`$user in `$UserPaths) {
+                `$chromePath = "`$(`$user.FullName)\AppData\Local\Google\Chrome\Application\chrome.exe"
+                `$chromeUpdater = "`$(`$user.FullName)\AppData\Local\Google\Update\GoogleUpdate.exe"
+                if (Test-Path `$chromePath) {
+                    if (Test-Path `$chromeUpdater) {
+                        try { Start-Process -FilePath `$chromeUpdater -ArgumentList "/ua /installsource scheduler" -Wait -WindowStyle Hidden } catch {}
+                    } else {
+                        Rename-Item -Path `$chromePath -NewName "chrome_abandoned.exe.bak" -Force -ErrorAction SilentlyContinue
+                    }
+                }
+
+                `$edgePath = "`$(`$user.FullName)\AppData\Local\Microsoft\Edge\Application\msedge.exe"
+                `$edgeUpdater = "`$(`$user.FullName)\AppData\Local\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe"
+                if (Test-Path `$edgePath) {
+                    if (Test-Path `$edgeUpdater) {
+                        try { Start-Process -FilePath `$edgeUpdater -ArgumentList "/ua /installsource scheduler" -Wait -WindowStyle Hidden } catch {}
+                    } else {
+                        Rename-Item -Path `$edgePath -NewName "msedge_abandoned.exe.bak" -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+            Send-Log `$jobId "Ghost hunter complete."
 
             Send-Progress `$jobId 100
 
