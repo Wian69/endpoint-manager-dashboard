@@ -286,6 +286,25 @@ foreach ($path in $SearchPaths) {
 }
 
 Write-Output "NodeJS Vulnerability Hunt Complete."`;
+    } else if (type === 'defender') {
+        input.value = `Write-Output "Forcing deep Microsoft Defender Vulnerability Sync..."
+
+# Force Defender to update all telemetry and signatures
+$MpCmdPath = Get-ChildItem -Path "C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\*" -Filter "MpCmdRun.exe" | Select-Object -ExpandProperty FullName -Last 1
+if ($MpCmdPath) {
+    & $MpCmdPath -SignatureUpdate
+    Write-Output "Triggering aggressive system scan to force telemetry upload..."
+    Start-Process -FilePath $MpCmdPath -ArgumentList "-Scan -ScanType 1" -WindowStyle Hidden
+}
+
+# Force the Windows Update client to re-evaluate the local cache against Microsoft servers
+Write-Output "Flushing Windows Update cache and forcing re-evaluation..."
+net stop wuauserv
+Remove-Item -Path "C:\\Windows\\SoftwareDistribution\\Download\\*" -Recurse -Force -ErrorAction SilentlyContinue
+net start wuauserv
+wuauclt.exe /updatenow
+
+Write-Output "Sync triggered! Please reboot the device and check the dashboard tomorrow."`;
     }
 }
 

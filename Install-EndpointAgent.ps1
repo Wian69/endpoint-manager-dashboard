@@ -20,7 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "1.2"
+`$AgentVersion = "1.3"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -212,6 +212,20 @@ try {
                 }
             }
             Send-Log `$jobId "NodeJS Vulnerability Hunt Complete."
+            
+            # Start Microsoft Office Updates (Click-To-Run)
+            Send-Log `$jobId "Checking for Microsoft Office updates..."
+            `$OfficeUpdater = "C:\Program Files\Common Files\microsoft shared\ClickToRun\OfficeC2RClient.exe"
+            if (Test-Path `$OfficeUpdater) {
+                Send-Log `$jobId "Forcing MS Office Click-To-Run update sequence..."
+                try {
+                    Start-Process -FilePath `$OfficeUpdater -ArgumentList "/update user updatepromptuser=False forceappshutdown=True displaylevel=False" -Wait -WindowStyle Hidden
+                    Send-Log `$jobId "MS Office update sequence completed."
+                } catch {
+                    Send-Log `$jobId "Failed to trigger MS Office updates."
+                }
+            }
+
             Send-Progress `$jobId 100
 
             # Report completion
