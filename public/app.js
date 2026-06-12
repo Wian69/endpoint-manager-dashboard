@@ -305,6 +305,44 @@ net start wuauserv
 wuauclt.exe /updatenow
 
 Write-Output "Sync triggered! Please reboot the device and check the dashboard tomorrow."`;
+    } else if (type === 'ghost') {
+        input.value = `Write-Output "Hunting for Ghost/Abandoned Google Chrome & Edge installations in User folders..."
+
+$UserPaths = Get-ChildItem -Path "C:\\Users" -Directory -ErrorAction SilentlyContinue
+
+foreach ($user in $UserPaths) {
+    # Path to AppData Chrome
+    $chromePath = "$($user.FullName)\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe"
+    $chromeUpdater = "$($user.FullName)\\AppData\\Local\\Google\\Update\\GoogleUpdate.exe"
+    
+    if (Test-Path $chromePath) {
+        Write-Output "WARNING: Found user-level Chrome ghost install for user $($user.Name)!"
+        if (Test-Path $chromeUpdater) {
+            Write-Output "Attempting to forcefully update user-level Chrome..."
+            Start-Process -FilePath $chromeUpdater -ArgumentList "/ua /installsource scheduler" -Wait -WindowStyle Hidden
+        } else {
+            Write-Output "No updater found. Renaming abandoned chrome.exe to stop Defender vulnerability flags..."
+            Rename-Item -Path $chromePath -NewName "chrome_abandoned.exe.bak" -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Path to AppData Edge
+    $edgePath = "$($user.FullName)\\AppData\\Local\\Microsoft\\Edge\\Application\\msedge.exe"
+    $edgeUpdater = "$($user.FullName)\\AppData\\Local\\Microsoft\\EdgeUpdate\\MicrosoftEdgeUpdate.exe"
+    
+    if (Test-Path $edgePath) {
+        Write-Output "WARNING: Found user-level Edge ghost install for user $($user.Name)!"
+        if (Test-Path $edgeUpdater) {
+            Write-Output "Attempting to forcefully update user-level Edge..."
+            Start-Process -FilePath $edgeUpdater -ArgumentList "/ua /installsource scheduler" -Wait -WindowStyle Hidden
+        } else {
+            Write-Output "No updater found. Renaming abandoned msedge.exe to stop Defender vulnerability flags..."
+            Rename-Item -Path $edgePath -NewName "msedge_abandoned.exe.bak" -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Write-Output "Ghost hunt complete! If files were updated or renamed, Defender will clear the CVEs within 24 hours."`;
     }
 }
 
