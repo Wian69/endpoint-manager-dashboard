@@ -106,8 +106,8 @@ function openDeviceModal(hostname) {
     // Build Detailed Body HTML
     let bodyHtml = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h3 style="margin: 0; color: white;">Device Details</h3>
-        <button onclick="deleteDevice('${device.hostname}')" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: background 0.2s;">
-            <span style="margin-right: 5px;">🗑️</span>Delete Device
+        <button class="btn-action danger" onclick="deleteDevice('${device.hostname}')">
+            <span style="margin-right: 5px;">🗑️</span> Delete Device
         </button>
     </div>`;
 
@@ -182,24 +182,26 @@ function openDeviceModal(hostname) {
 
     // Action Buttons
     actions.innerHTML = `
-        <button class="btn-primary" onclick="openLogs('${escapeHtml(device.hostname)}')" style="margin-right: auto;">
-            View Logs
-        </button>
-        <button class="btn-primary" onclick="openLocationModal('${escapeHtml(device.hostname)}')" style="background-color: #10b981;">
-            Location History
-        </button>
-        <button class="btn-primary" onclick="openScriptModal('${escapeHtml(device.hostname)}')" style="background-color: #8b5cf6;">
-            Deploy Script
-        </button>
-        <button class="btn-primary" onclick="triggerScan('${escapeHtml(device.hostname)}', this)" style="background-color: #3b82f6;">
-            Scan Device
-        </button>
-        <button class="btn-danger" onclick="triggerUpdate('${escapeHtml(device.hostname)}', this)" ${totalPending === 0 ? 'disabled style="opacity:0.5"' : ''}>
-            Force Updates
-        </button>
-        <button class="btn-danger" style="background-color: var(--warning-color); color: #000;" onclick="triggerRestart('${escapeHtml(device.hostname)}', this)">
-            Restart
-        </button>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; width: 100%; justify-content: center; padding-top: 1rem; border-top: 1px solid var(--glass-border);">
+            <button class="btn-action outline" onclick="openLogs('${escapeHtml(device.hostname)}')">
+                <span style="margin-right: 5px;">📄</span> View Logs
+            </button>
+            <button class="btn-action outline" onclick="openLocationModal('${escapeHtml(device.hostname)}')">
+                <span style="margin-right: 5px;">📍</span> Location
+            </button>
+            <button class="btn-action outline" onclick="openScriptModal('${escapeHtml(device.hostname)}')">
+                <span style="margin-right: 5px;">⚡</span> Deploy Script
+            </button>
+            <button class="btn-action outline" onclick="triggerScan('${escapeHtml(device.hostname)}', this)">
+                <span style="margin-right: 5px;">🔍</span> Scan Device
+            </button>
+            <button class="btn-action danger" onclick="triggerUpdate('${escapeHtml(device.hostname)}', this)" ${totalPending === 0 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+                <span style="margin-right: 5px;">⬇️</span> Force Updates
+            </button>
+            <button class="btn-action danger" onclick="triggerRestart('${escapeHtml(device.hostname)}', this)">
+                <span style="margin-right: 5px;">🔄</span> Restart
+            </button>
+        </div>
     `;
 
     document.getElementById('deviceModal').style.display = 'flex';

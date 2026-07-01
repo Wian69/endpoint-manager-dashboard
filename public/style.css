@@ -153,6 +153,50 @@ body {
     box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
 }
 
+.btn-action {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    backdrop-filter: blur(4px);
+}
+
+.btn-action:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.btn-action.outline {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(56, 189, 248, 0.05);
+}
+
+.btn-action.outline:hover {
+    background: rgba(56, 189, 248, 0.15);
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+}
+
+.btn-action.danger {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.btn-action.danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+}
+
 .devices-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
