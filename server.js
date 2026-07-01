@@ -21,7 +21,7 @@ const devicesDB = new Map(); // Key: hostname, Value: device object
 const jobsDB = []; // Array of job objects
 let nextJobId = 1;
 
-const TARGET_AGENT_VERSION = "1.9";
+const TARGET_AGENT_VERSION = "2.0";
 
 const azureCache = new Map(); // Key: hostname, Value: array of CVEs
 
@@ -113,7 +113,7 @@ app.get('/api/agent/installer', (req, res) => {
 
 // Agent Check-in
 app.post('/api/agent/checkin', (req, res) => {
-    const { hostname, agentVersion, osVersion, networkName, location, pendingWindowsUpdates, pendingAppUpdates, updateList, rebootRequired } = req.body;
+    const { hostname, agentVersion, osVersion, networkName, network_name, location, policies, pendingWindowsUpdates, pendingAppUpdates, updateList, rebootRequired } = req.body;
     
     if (!hostname) return res.status(400).json({ error: 'Hostname is required' });
 
@@ -155,16 +155,19 @@ app.post('/api/agent/checkin', (req, res) => {
         hostname,
         agent_version: agentVersion || "1.0",
         os_version: osVersion,
-        network_name: networkName || 'Unknown',
+        network_name: network_name || networkName || 'Unknown',
         location: currentLocation,
         location_history: locationHistory,
+        policies: policies || [],
         last_seen: now,
         pending_windows_updates: pendingWindowsUpdates,
         pending_app_updates: pendingAppUpdates,
         update_list: updateList || [],
+        reboot_required: rebootRequired || false,
+        detailed_updates: existingDevice ? existingDevice.detailed_updates : [],
         completed_updates: completedUpdates,
-        detailed_updates: existingDevice?.detailed_updates || [],
-        reboot_required: !!rebootRequired
+        last_update_run: existingDevice ? existingDevice.last_update_run : null,
+        azure_cves: azureCache.get(hostname) || []
     });
 
     const activeJob = jobsDB.find(j => j.hostname === hostname && (j.status === 'pending' || j.status === 'in_progress'));

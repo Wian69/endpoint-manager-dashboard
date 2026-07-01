@@ -20,7 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "1.9"
+`$AgentVersion = "2.0"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -120,17 +120,38 @@ function Get-PendingUpdates {
         `$watcher.Stop()
     } catch {}
 
+    # Get Applied Policies
+    `$AppliedPolicies = @()
+    try {
+        `$rawPolicies = Get-ChildItem -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\current\device" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty PSChildName
+        foreach (`$p in `$rawPolicies) {
+            `$cleanName = `$p -replace '(?i)microsoft_edge.*', 'Microsoft Edge'
+            `$cleanName = `$cleanName -replace '(?i)chromeIntune.*', 'Google Chrome'
+            `$cleanName = `$cleanName -replace '(?i)office16.*', 'Microsoft Office'
+            `$cleanName = `$cleanName -replace '(?i)OneDriveNGSC.*', 'OneDrive'
+            `$cleanName = `$cleanName -replace '(?i)update.*Google.*', 'Google Update'
+            `$cleanName = `$cleanName -replace '(?i)SecGuide.*', 'Security Guide'
+            `$cleanName = `$cleanName -replace '~Policy~.*', ''
+            if (`$cleanName -notmatch 'ADMX_') {
+                if (`$AppliedPolicies -notcontains `$cleanName) {
+                    `$AppliedPolicies += `$cleanName
+                }
+            }
+        }
+    } catch {}
+
     `$checkinBody = @{
-    hostname = `$Hostname
-    agentVersion = `$AgentVersion
-    osVersion = `$OSVersion
-    networkName = `$NetworkName
-    location = `$Location
-    pendingWindowsUpdates = `$updates.windows
-    pendingAppUpdates = `$updates.apps
-    updateList = `$updateList
-    rebootRequired = `$updates.rebootRequired
-} | ConvertTo-Json -Depth 10
+        hostname = `$Hostname
+        agentVersion = `$AgentVersion
+        osVersion = `$OSVersion
+        network_name = `$NetworkName
+        location = `$Location
+        policies = `$AppliedPolicies
+        pendingWindowsUpdates = `$updates.windows
+        pendingAppUpdates = `$updates.apps
+        updateList = `$updateList
+        rebootRequired = `$updates.rebootRequired
+    } | ConvertTo-Json -Depth 10
 
 try {
     `$utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes(`$checkinBody)

@@ -150,6 +150,16 @@ function openDeviceModal(hostname) {
         </div>`;
     }
 
+    // Applied Policies
+    if (device.policies && device.policies.length > 0) {
+        bodyHtml += `<div style="margin-bottom: 1rem; padding: 1rem; background:rgba(56, 189, 248, 0.05); border:1px solid rgba(56, 189, 248, 0.2); border-radius:4px;">
+            <h4 style="margin: 0 0 0.75rem 0; color: #38bdf8;"><span style="margin-right: 5px;">📜</span>Applied Policies (${device.policies.length})</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                ${device.policies.map(p => `<span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; border: 1px solid rgba(56, 189, 248, 0.3);">${escapeHtml(p)}</span>`).join('')}
+            </div>
+        </div>`;
+    }
+
     // Completed Updates
     if (device.completed_updates && device.completed_updates.length > 0) {
         const timeStr = new Date(device.last_update_run).toLocaleTimeString();
