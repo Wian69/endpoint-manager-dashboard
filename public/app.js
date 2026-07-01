@@ -358,6 +358,34 @@ net start wuauserv
 wuauclt.exe /updatenow
 
 Write-Output "Sync triggered! Please reboot the device and check the dashboard tomorrow."`;
+    } else if (type === 'printers') {
+        input.value = `Write-Output "Configuring Printers: Enabling PDF/Virtual, Disabling Physical..."
+
+# 1. Ensure the Print Spooler service is running, because it's required for PDF printing
+Set-Service -Name Spooler -StartupType Automatic
+Start-Service -Name Spooler -ErrorAction SilentlyContinue
+
+# 2. Get all installed printers
+$printers = Get-Printer
+
+$removedCount = 0
+$keptCount = 0
+
+foreach ($printer in $printers) {
+    # Check if the printer name matches common virtual/software printers
+    if ($printer.Name -match "PDF|XPS|OneNote|Webex|Snagit|Send To|Virtual") {
+        Write-Output "Keeping virtual printer: $($printer.Name)"
+        $keptCount++
+    } else {
+        Write-Output "Removing physical printer: $($printer.Name)"
+        Remove-Printer -Name $printer.Name -ErrorAction SilentlyContinue
+        $removedCount++
+    }
+}
+
+Write-Output "----------------------------------------"
+Write-Output "Removed $removedCount physical printers."
+Write-Output "Kept $keptCount virtual printers (PDF printing is enabled)."`;
     } else if (type === 'ghost') {
         input.value = `Write-Output "Hunting for Ghost/Abandoned Google Chrome & Edge installations in User folders..."
 
