@@ -21,7 +21,7 @@ const devicesDB = new Map(); // Key: hostname, Value: device object
 const jobsDB = []; // Array of job objects
 let nextJobId = 1;
 
-const TARGET_AGENT_VERSION = "1.5";
+const TARGET_AGENT_VERSION = "1.6";
 
 const azureCache = new Map(); // Key: hostname, Value: array of CVEs
 
@@ -113,7 +113,7 @@ app.get('/api/agent/installer', (req, res) => {
 
 // Agent Check-in
 app.post('/api/agent/checkin', (req, res) => {
-    const { hostname, agentVersion, osVersion, pendingWindowsUpdates, pendingAppUpdates, updateList, rebootRequired } = req.body;
+    const { hostname, agentVersion, osVersion, networkName, pendingWindowsUpdates, pendingAppUpdates, updateList, rebootRequired } = req.body;
     
     if (!hostname) return res.status(400).json({ error: 'Hostname is required' });
 
@@ -128,6 +128,7 @@ app.post('/api/agent/checkin', (req, res) => {
         hostname,
         agent_version: agentVersion || "1.0",
         os_version: osVersion,
+        network_name: networkName || 'Unknown',
         last_seen: now,
         pending_windows_updates: pendingWindowsUpdates,
         pending_app_updates: pendingAppUpdates,

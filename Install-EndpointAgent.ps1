@@ -20,7 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "1.5"
+`$AgentVersion = "1.6"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -89,13 +89,19 @@ function Get-PendingUpdates {
 # 1. Check-in with server
     # Check for pending updates to report to server
     `$updates = Get-PendingUpdates
+    `$updateList = `$updates.list
+
+    `$NetworkName = (Get-NetConnectionProfile -ErrorAction SilentlyContinue).Name -join ", "
+    if (-not `$NetworkName) { `$NetworkName = "Unknown" }
+
     `$checkinBody = @{
     hostname = `$Hostname
     agentVersion = `$AgentVersion
     osVersion = `$OSVersion
+    networkName = `$NetworkName
     pendingWindowsUpdates = `$updates.windows
     pendingAppUpdates = `$updates.apps
-    updateList = `$updates.list
+    updateList = `$updateList
     rebootRequired = `$updates.rebootRequired
 } | ConvertTo-Json
 
