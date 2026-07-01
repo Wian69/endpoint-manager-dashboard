@@ -389,6 +389,26 @@ foreach ($printer in $printers) {
 Write-Output "----------------------------------------"
 Write-Output "Disabled (paused) $disabledCount physical printers."
 Write-Output "Kept $keptCount virtual printers (PDF printing is enabled)."`;
+    } else if (type === 'enable_printers') {
+        input.value = `Write-Output "Configuring Printers: Enabling all Physical & Virtual Printers..."
+
+# 1. Ensure the Print Spooler service is running
+Set-Service -Name Spooler -StartupType Automatic
+Start-Service -Name Spooler -ErrorAction SilentlyContinue
+
+# 2. Get all installed printers
+$printers = Get-Printer
+
+$enabledCount = 0
+
+foreach ($printer in $printers) {
+    Write-Output "Resuming printer: $($printer.Name)"
+    Invoke-CimMethod -Query "SELECT * FROM Win32_Printer WHERE Name = '$($printer.Name)'" -MethodName Resume -ErrorAction SilentlyContinue | Out-Null
+    $enabledCount++
+}
+
+Write-Output "----------------------------------------"
+Write-Output "Successfully enabled (resumed) $enabledCount printers."`;
     } else if (type === 'ghost') {
         input.value = `Write-Output "Hunting for Ghost/Abandoned Google Chrome & Edge installations in User folders..."
 
