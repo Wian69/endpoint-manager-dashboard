@@ -125,7 +125,13 @@ app.post('/api/agent/checkin', (req, res) => {
     let locationHistory = existingDevice && existingDevice.location_history ? existingDevice.location_history : [];
 
     // Location history tracking
-    const currentLocation = location || 'Unknown';
+    let currentLocation = location || 'Unknown';
+    
+    // If the agent times out trying to lock GPS and sends "Unknown", fallback to the last known good location!
+    if (currentLocation === 'Unknown' && locationHistory.length > 0) {
+        currentLocation = locationHistory[locationHistory.length - 1].location;
+    }
+
     if (currentLocation !== 'Unknown') {
         const lastEntry = locationHistory.length > 0 ? locationHistory[locationHistory.length - 1] : null;
         const timeSinceLast = lastEntry ? (new Date(now) - new Date(lastEntry.timestamp)) : Infinity;
