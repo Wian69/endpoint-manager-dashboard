@@ -20,7 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "1.7"
+`$AgentVersion = "1.8"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -96,10 +96,28 @@ function Get-PendingUpdates {
 
     `$Location = "Unknown"
     try {
-        `$ipInfo = Invoke-RestMethod -Uri "https://ipinfo.io/json" -TimeoutSec 5 -ErrorAction SilentlyContinue
-        if (`$ipInfo.city -and `$ipInfo.region) {
-            `$Location = "`$(`$ipInfo.city), `$(`$ipInfo.region)"
+        Add-Type -AssemblyName System.Device
+        `$watcher = New-Object System.Device.Location.GeoCoordinateWatcher
+        `$watcher.Start()
+        
+        `$timeout = 0
+        while (`$watcher.Status -ne 'Ready' -and `$timeout -lt 10) {
+            Start-Sleep -Milliseconds 500
+            `$timeout++
         }
+        
+        `$loc = `$watcher.Position.Location
+        if (-not `$loc.IsUnknown) {
+            `$lat = `$loc.Latitude
+            `$lon = `$loc.Longitude
+            `$geoInfo = Invoke-RestMethod -Uri "https://nominatim.openstreetmap.org/reverse?format=json&lat=`$lat&lon=`$lon" -Headers @{ "User-Agent" = "EndpointManagerAgent/1.8" } -TimeoutSec 5 -ErrorAction SilentlyContinue
+            if (`$geoInfo -and `$geoInfo.display_name) {
+                `$Location = `$geoInfo.display_name
+            } else {
+                `$Location = "`$lat, `$lon"
+            }
+        }
+        `$watcher.Stop()
     } catch {}
 
     `$checkinBody = @{
