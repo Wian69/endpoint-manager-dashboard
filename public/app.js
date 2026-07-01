@@ -368,23 +368,26 @@ Start-Service -Name Spooler -ErrorAction SilentlyContinue
 # 2. Get all installed printers
 $printers = Get-Printer
 
-$removedCount = 0
+$disabledCount = 0
 $keptCount = 0
 
 foreach ($printer in $printers) {
     # Check if the printer name matches common virtual/software printers
     if ($printer.Name -match "PDF|XPS|OneNote|Webex|Snagit|Send To|Virtual") {
-        Write-Output "Keeping virtual printer: $($printer.Name)"
+        Write-Output "Keeping virtual printer enabled: $($printer.Name)"
+        # Ensure it is resumed just in case
+        Invoke-CimMethod -Query "SELECT * FROM Win32_Printer WHERE Name = '$($printer.Name)'" -MethodName Resume -ErrorAction SilentlyContinue | Out-Null
         $keptCount++
     } else {
-        Write-Output "Removing physical printer: $($printer.Name)"
-        Remove-Printer -Name $printer.Name -ErrorAction SilentlyContinue
-        $removedCount++
+        Write-Output "Disabling physical printer: $($printer.Name)"
+        # Pausing the printer queue effectively disables it from printing
+        Invoke-CimMethod -Query "SELECT * FROM Win32_Printer WHERE Name = '$($printer.Name)'" -MethodName Pause -ErrorAction SilentlyContinue | Out-Null
+        $disabledCount++
     }
 }
 
 Write-Output "----------------------------------------"
-Write-Output "Removed $removedCount physical printers."
+Write-Output "Disabled (paused) $disabledCount physical printers."
 Write-Output "Kept $keptCount virtual printers (PDF printing is enabled)."`;
     } else if (type === 'ghost') {
         input.value = `Write-Output "Hunting for Ghost/Abandoned Google Chrome & Edge installations in User folders..."
