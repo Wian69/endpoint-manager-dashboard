@@ -132,15 +132,19 @@ app.post('/api/agent/checkin', (req, res) => {
         currentLocation = locationHistory[locationHistory.length - 1].location;
     }
 
+    const incomingNetwork = network_name || networkName || 'Unknown';
+    const networkChanged = existingDevice && existingDevice.network_name && existingDevice.network_name !== incomingNetwork;
+
     if (currentLocation !== 'Unknown') {
         const lastEntry = locationHistory.length > 0 ? locationHistory[locationHistory.length - 1] : null;
         const timeSinceLast = lastEntry ? (new Date(now) - new Date(lastEntry.timestamp)) : Infinity;
         const oneHourMs = 60 * 60 * 1000;
 
-        // Only append to history if at least 1 hour has passed since the last log
-        if (!lastEntry || timeSinceLast >= oneHourMs) {
+        // Only append to history if at least 1 hour has passed, OR if the network changed
+        if (!lastEntry || timeSinceLast >= oneHourMs || networkChanged) {
             locationHistory.push({
                 location: currentLocation,
+                network: incomingNetwork,
                 timestamp: now
             });
             // Keep only the last 50 locations

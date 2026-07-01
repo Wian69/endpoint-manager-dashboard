@@ -228,6 +228,7 @@ function openLocationModal(hostname) {
                 <li style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 6px; display: flex; flex-direction: column; gap: 0.25rem;">
                     <span style="font-size: 0.8rem; color: var(--primary-color);">${timeStr}</span>
                     <span style="font-size: 0.95rem; color: white;">${escapeHtml(entry.location)}</span>
+                    ${entry.network ? `<span style="font-size: 0.75rem; color: var(--text-secondary);">📶 ${escapeHtml(entry.network)}</span>` : ''}
                 </li>
             `;
         });
