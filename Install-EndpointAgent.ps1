@@ -16,11 +16,12 @@ if (-not (Test-Path $AgentDir)) {
 }
 
 # 2. Write the Agent Script Payload
+# 2. Write the Agent Script Payload
 $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "2.0"
+`$AgentVersion = "2.1"
 
 # Function to get pending updates
 function Get-PendingUpdates {
