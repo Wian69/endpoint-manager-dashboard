@@ -20,7 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "1.8"
+`$AgentVersion = "1.9"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -110,7 +110,7 @@ function Get-PendingUpdates {
         if (-not `$loc.IsUnknown) {
             `$lat = `$loc.Latitude
             `$lon = `$loc.Longitude
-            `$geoInfo = Invoke-RestMethod -Uri "https://nominatim.openstreetmap.org/reverse?format=json&lat=`$lat&lon=`$lon" -Headers @{ "User-Agent" = "EndpointManagerAgent/1.8" } -TimeoutSec 5 -ErrorAction SilentlyContinue
+            `$geoInfo = Invoke-RestMethod -Uri "https://nominatim.openstreetmap.org/reverse?format=json&lat=`$lat&lon=`$lon&accept-language=en" -Headers @{ "User-Agent" = "EndpointManagerAgent/1.9" } -TimeoutSec 5 -ErrorAction SilentlyContinue
             if (`$geoInfo -and `$geoInfo.display_name) {
                 `$Location = `$geoInfo.display_name
             } else {
@@ -130,10 +130,11 @@ function Get-PendingUpdates {
     pendingAppUpdates = `$updates.apps
     updateList = `$updateList
     rebootRequired = `$updates.rebootRequired
-} | ConvertTo-Json
+} | ConvertTo-Json -Depth 10
 
 try {
-    Invoke-RestMethod -Uri "`$ServerUrl/api/agent/checkin" -Method Post -Body `$checkinBody -ContentType "application/json" -TimeoutSec 60
+    `$utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes(`$checkinBody)
+    Invoke-RestMethod -Uri "`$ServerUrl/api/agent/checkin" -Method Post -Body `$utf8Bytes -ContentType "application/json; charset=utf-8" -TimeoutSec 60
 } catch {
     Write-Warning "Failed to check in with server"
 }
