@@ -76,6 +76,7 @@ function renderDevices(devices) {
                 <div class="device-info">
                     <p><strong>OS:</strong> ${escapeHtml(device.os_version)}</p>
                     <p><strong>Network:</strong> ${escapeHtml(device.network_name || 'Unknown')}</p>
+                    <p><strong>Location:</strong> ${escapeHtml(device.location || 'Unknown')}</p>
                     <p><strong>Agent:</strong> v${escapeHtml(device.agent_version || '1.0')}</p>
                     <p><strong>Last Check-in:</strong> ${lastSeen.toLocaleTimeString()}</p>
                 </div>

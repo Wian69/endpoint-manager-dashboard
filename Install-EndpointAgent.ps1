@@ -20,7 +20,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "1.6"
+`$AgentVersion = "1.7"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -94,11 +94,20 @@ function Get-PendingUpdates {
     `$NetworkName = (Get-NetConnectionProfile -ErrorAction SilentlyContinue).Name -join ", "
     if (-not `$NetworkName) { `$NetworkName = "Unknown" }
 
+    `$Location = "Unknown"
+    try {
+        `$ipInfo = Invoke-RestMethod -Uri "https://ipinfo.io/json" -TimeoutSec 5 -ErrorAction SilentlyContinue
+        if (`$ipInfo.city -and `$ipInfo.region) {
+            `$Location = "`$(`$ipInfo.city), `$(`$ipInfo.region)"
+        }
+    } catch {}
+
     `$checkinBody = @{
     hostname = `$Hostname
     agentVersion = `$AgentVersion
     osVersion = `$OSVersion
     networkName = `$NetworkName
+    location = `$Location
     pendingWindowsUpdates = `$updates.windows
     pendingAppUpdates = `$updates.apps
     updateList = `$updateList
