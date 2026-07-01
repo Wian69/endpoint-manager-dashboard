@@ -49,16 +49,18 @@
 
     <!-- Device Details Modal -->
     <div id="deviceModal" class="modal" style="display: none;">
-        <div class="modal-content glass-card">
+        <div class="modal-content glass-card" style="max-width: 1000px;">
             <div class="modal-header">
                 <h2 id="modalDeviceName">Device Name</h2>
                 <button class="close-btn" onclick="closeDeviceModal()">×</button>
             </div>
-            <div class="modal-body" id="modalDeviceBody">
-                <!-- Detailed content injected here -->
-            </div>
-            <div class="modal-actions" id="modalDeviceActions">
-                <!-- Action buttons injected here -->
+            <div class="modal-layout" style="display: flex; gap: 1.5rem; flex-grow: 1; overflow: hidden;">
+                <div class="modal-sidebar" id="modalDeviceActions" style="min-width: 200px; display: flex; flex-direction: column; gap: 0.75rem; border-right: 1px solid var(--glass-border); padding-right: 1.5rem; overflow-y: auto;">
+                    <!-- Action buttons injected here -->
+                </div>
+                <div class="modal-body" id="modalDeviceBody" style="flex-grow: 1; padding: 0; overflow-y: auto;">
+                    <!-- Detailed content injected here -->
+                </div>
             </div>
         </div>
     </div>
