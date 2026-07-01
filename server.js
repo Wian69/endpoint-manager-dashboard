@@ -127,7 +127,12 @@ app.post('/api/agent/checkin', (req, res) => {
     // Location history tracking
     const currentLocation = location || 'Unknown';
     if (currentLocation !== 'Unknown') {
-        if (locationHistory.length === 0 || locationHistory[locationHistory.length - 1].location !== currentLocation) {
+        const lastEntry = locationHistory.length > 0 ? locationHistory[locationHistory.length - 1] : null;
+        const timeSinceLast = lastEntry ? (new Date(now) - new Date(lastEntry.timestamp)) : Infinity;
+        const oneHourMs = 60 * 60 * 1000;
+
+        // Only append to history if at least 1 hour has passed since the last log
+        if (!lastEntry || timeSinceLast >= oneHourMs) {
             locationHistory.push({
                 location: currentLocation,
                 timestamp: now
