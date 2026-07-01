@@ -358,7 +358,17 @@ try {
                 Send-Progress `$jobId 50
                 try {
                     `$scriptBlock = [ScriptBlock]::Create(`$scriptBody)
-                    `$output = & `$scriptBlock *>&1 | Out-String
+                    `$backgroundJob = Start-Job -ScriptBlock `$scriptBlock
+                    
+                    # Poll the job and keep agent online
+                    while (`$backgroundJob.State -eq 'Running') {
+                        Start-Sleep -Seconds 30
+                        Send-Log `$jobId "Script is still running in the background..."
+                    }
+                    
+                    `$output = Receive-Job -Job `$backgroundJob -ErrorAction SilentlyContinue | Out-String
+                    Remove-Job -Job `$backgroundJob -Force -ErrorAction SilentlyContinue
+                    
                     Send-Log `$jobId "Script Output:`n`$output"
                     Send-Progress `$jobId 100
                 } catch {

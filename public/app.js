@@ -104,7 +104,12 @@ function openDeviceModal(hostname) {
     const totalPending = (device.pending_windows_updates || 0) + (device.pending_app_updates || 0);
 
     // Build Detailed Body HTML
-    let bodyHtml = '';
+    let bodyHtml = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0; color: white;">Device Details</h3>
+        <button onclick="deleteDevice('${device.hostname}')" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: background 0.2s;">
+            <span style="margin-right: 5px;">🗑️</span>Delete Device
+        </button>
+    </div>`;
 
     // App list details
     if (device.update_list && device.update_list.length > 0) {

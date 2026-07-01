@@ -272,6 +272,8 @@ app.post('/api/agent/jobs/:jobId/log', (req, res) => {
     const job = jobsDB.find(j => j.id === jobId);
     if (job) {
         job.logs.push(`[${new Date().toLocaleTimeString()}] ${log}`);
+        const device = devicesDB.get(job.hostname);
+        if (device) device.last_seen = new Date().toISOString();
     }
     res.json({ success: true });
 });
@@ -284,6 +286,8 @@ app.post('/api/agent/jobs/:jobId/progress', (req, res) => {
     const job = jobsDB.find(j => j.id === jobId);
     if (job) {
         job.progress = parseInt(progress) || 0;
+        const device = devicesDB.get(job.hostname);
+        if (device) device.last_seen = new Date().toISOString();
     }
     res.json({ success: true });
 });
@@ -305,6 +309,17 @@ app.get('/api/devices', (req, res) => {
     });
     
     res.json(devicesArray);
+});
+
+// Delete a device from the dashboard
+app.delete('/api/devices/:hostname', (req, res) => {
+    const hostname = req.params.hostname;
+    if (devicesDB.has(hostname)) {
+        devicesDB.delete(hostname);
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: 'Device not found' });
+    }
 });
 
 // Queue an update command for a device
