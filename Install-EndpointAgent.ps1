@@ -21,7 +21,7 @@ $AgentPayload = @"
 `$ServerUrl = "$ServerUrl"
 `$Hostname = `$env:COMPUTERNAME
 `$OSVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-`$AgentVersion = "2.1"
+`$AgentVersion = "2.2"
 
 # Function to get pending updates
 function Get-PendingUpdates {
@@ -487,7 +487,7 @@ Set-Content -Path $AgentScriptPath -Value $AgentPayload -Encoding UTF8
 # 3. Create Scheduled Task
 $TaskName = "EndpointManagementAgent"
 $TaskAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$AgentScriptPath`""
-$TaskTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1)
+$TaskTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(10) -RepetitionInterval (New-TimeSpan -Minutes 1)
 $TaskTrigger.Repetition.Duration = "P3650D" # Run for 10 years without expiring
 
 $TaskSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable:$false
