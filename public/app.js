@@ -170,6 +170,9 @@ function openDeviceModal(hostname) {
         <button class="btn-primary" onclick="openLogs('${escapeHtml(device.hostname)}')" style="margin-right: auto;">
             View Logs
         </button>
+        <button class="btn-primary" onclick="openLocationModal('${escapeHtml(device.hostname)}')" style="background-color: #10b981;">
+            Location History
+        </button>
         <button class="btn-primary" onclick="openScriptModal('${escapeHtml(device.hostname)}')" style="background-color: #8b5cf6;">
             Deploy Script
         </button>
@@ -189,6 +192,37 @@ function openDeviceModal(hostname) {
 
 function closeDeviceModal() {
     document.getElementById('deviceModal').style.display = 'none';
+}
+
+/* Location Modal Logic */
+function openLocationModal(hostname) {
+    const device = window.globalDevices.find(d => d.hostname === hostname);
+    if (!device) return;
+
+    const list = document.getElementById('locationHistoryList');
+    list.innerHTML = '';
+
+    if (!device.location_history || device.location_history.length === 0) {
+        list.innerHTML = '<li style="text-align:center; color: var(--text-secondary); padding: 1rem;">No history available yet.</li>';
+    } else {
+        // Reverse to show newest first
+        const historyReversed = [...device.location_history].reverse();
+        historyReversed.forEach(entry => {
+            const timeStr = new Date(entry.timestamp).toLocaleString();
+            list.innerHTML += `
+                <li style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 6px; display: flex; flex-direction: column; gap: 0.25rem;">
+                    <span style="font-size: 0.8rem; color: var(--primary-color);">${timeStr}</span>
+                    <span style="font-size: 0.95rem; color: white;">${escapeHtml(entry.location)}</span>
+                </li>
+            `;
+        });
+    }
+
+    document.getElementById('location-modal').style.display = 'flex';
+}
+
+function closeLocationModal() {
+    document.getElementById('location-modal').style.display = 'none';
 }
 
 /* Script Modal Logic */

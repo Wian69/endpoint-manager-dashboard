@@ -119,9 +119,25 @@ app.post('/api/agent/checkin', (req, res) => {
 
     const now = new Date().toISOString();
     
-    // Preserve existing completed updates if any
+    // Preserve existing data if any
     const existingDevice = devicesDB.get(hostname);
     const completedUpdates = existingDevice ? existingDevice.completed_updates : [];
+    let locationHistory = existingDevice && existingDevice.location_history ? existingDevice.location_history : [];
+
+    // Location history tracking
+    const currentLocation = location || 'Unknown';
+    if (currentLocation !== 'Unknown') {
+        if (locationHistory.length === 0 || locationHistory[locationHistory.length - 1].location !== currentLocation) {
+            locationHistory.push({
+                location: currentLocation,
+                timestamp: now
+            });
+            // Keep only the last 50 locations
+            if (locationHistory.length > 50) {
+                locationHistory = locationHistory.slice(locationHistory.length - 50);
+            }
+        }
+    }
 
     // Update or insert device
     devicesDB.set(hostname, {
@@ -129,7 +145,8 @@ app.post('/api/agent/checkin', (req, res) => {
         agent_version: agentVersion || "1.0",
         os_version: osVersion,
         network_name: networkName || 'Unknown',
-        location: location || 'Unknown',
+        location: currentLocation,
+        location_history: locationHistory,
         last_seen: now,
         pending_windows_updates: pendingWindowsUpdates,
         pending_app_updates: pendingAppUpdates,

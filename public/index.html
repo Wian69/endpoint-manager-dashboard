@@ -89,6 +89,21 @@
         </div>
     </div>
 
+    <!-- Location History Modal -->
+    <div id="location-modal" class="modal">
+        <div class="modal-content glass-card" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Location History</h2>
+                <button class="close-btn" onclick="closeLocationModal()">×</button>
+            </div>
+            <div class="modal-body" style="max-height: 60vh; overflow-y: auto; margin-top: 1rem;">
+                <ul id="locationHistoryList" style="list-style: none; padding: 0; margin: 0; display: flex; flexDirection: column; gap: 0.5rem;">
+                    <!-- Locations injected here -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <!-- Log Modal -->
     <div id="logs-modal" class="modal">
         <div class="modal-content glass-card">
