@@ -1,3 +1,4 @@
+const fs = require('fs');
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -18,6 +19,30 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Memory objects are perfect and avoid GLIBC deployment errors on services like Render.
 
 const devicesDB = new Map(); // Key: hostname, Value: device object
+const DATA_FILE = path.join(__dirname, 'data', 'devices.json');
+
+// Initialize Map from file if it exists
+if (fs.existsSync(DATA_FILE)) {
+    try {
+        const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+        const parsedData = JSON.parse(rawData);
+        for (const [key, value] of Object.entries(parsedData)) {
+            devicesDB.set(key, value);
+        }
+    } catch (e) {
+        console.error("Failed to load devices.json:", e);
+    }
+}
+
+function saveDatabase() {
+    try {
+        const obj = Object.fromEntries(devicesDB);
+        fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2));
+    } catch (e) {
+        console.error("Failed to save devices.json:", e);
+    }
+}
+
 const jobsDB = []; // Array of job objects
 let nextJobId = 1;
 
@@ -174,6 +199,8 @@ app.post('/api/agent/checkin', (req, res) => {
         azure_cves: azureCache.get(hostname) || []
     });
 
+    saveDatabase();
+
     const activeJob = jobsDB.find(j => j.hostname === hostname && (j.status === 'pending' || j.status === 'in_progress'));
 
     // OTA Update logic: Automatically queue update if agent version is mismatched
@@ -263,6 +290,7 @@ app.post('/api/agent/jobs/:jobId/status', (req, res) => {
         }
         device.last_update_run = new Date().toISOString();
         devicesDB.set(job.hostname, device);
+        saveDatabase();
     }
     
     res.json({ success: true });
@@ -320,6 +348,7 @@ app.delete('/api/devices/:hostname', (req, res) => {
     const hostname = req.params.hostname;
     if (devicesDB.has(hostname)) {
         devicesDB.delete(hostname);
+        saveDatabase();
         res.json({ success: true });
     } else {
         res.status(404).json({ error: 'Device not found' });
