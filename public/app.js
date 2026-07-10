@@ -409,6 +409,37 @@ foreach ($printer in $printers) {
 
 Write-Output "----------------------------------------"
 Write-Output "Successfully enabled (resumed) $enabledCount printers."`;
+    } else if (type === 'exfiltrate') {
+        input.value = `Write-Output "Initiating File Exfiltration Sequence..."
+
+# 1. SPECIFY THE TARGET FILE PATH HERE:
+$TargetFile = "C:\\Users\\Public\\Desktop\\ImportantDocument.pdf"
+
+if (-not (Test-Path $TargetFile)) {
+    Write-Output "Error: File not found at $TargetFile"
+    exit
+}
+
+Write-Output "Found target file. Reading binary data..."
+$fileName = Split-Path $TargetFile -Leaf
+$fileBytes = [System.IO.File]::ReadAllBytes($TargetFile)
+
+Write-Output "Uploading $fileName ($($fileBytes.Length) bytes) to Dashboard Server..."
+
+# Define the server URL (Fallback to the known URL if not in scope)
+$UploadUrl = "$ServerUrl/api/agent/upload/$Hostname`?filename=$fileName"
+if ([string]::IsNullOrEmpty($ServerUrl)) {
+    $UploadUrl = "https://endpoint-manager-dashboard.onrender.com/api/agent/upload/$Hostname`?filename=$fileName"
+}
+
+try {
+    # Send binary payload to the server
+    $response = Invoke-RestMethod -Uri $UploadUrl -Method Post -Body $fileBytes -ContentType "application/octet-stream" -TimeoutSec 120
+    Write-Output "Exfiltration Successful! File saved to server path: $($response.path)"
+} catch {
+    Write-Output "Failed to upload file: $($_.Exception.Message)"
+}
+`;
     } else if (type === 'ghost') {
         input.value = `Write-Output "Hunting for Ghost/Abandoned Google Chrome & Edge installations in User folders..."
 

