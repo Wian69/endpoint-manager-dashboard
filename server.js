@@ -46,7 +46,7 @@ function saveDatabase() {
 const jobsDB = []; // Array of job objects
 let nextJobId = 1;
 
-const TARGET_AGENT_VERSION = "2.2";
+const TARGET_AGENT_VERSION = "2.3";
 
 const azureCache = new Map(); // Key: hostname, Value: array of CVEs
 
