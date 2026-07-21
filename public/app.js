@@ -427,9 +427,9 @@ $fileBytes = [System.IO.File]::ReadAllBytes($TargetFile)
 Write-Output "Uploading $fileName ($($fileBytes.Length) bytes) to Dashboard Server..."
 
 # Define the server URL (Fallback to the known URL if not in scope)
-$UploadUrl = "$ServerUrl/api/agent/upload/$Hostname`?filename=$fileName"
+$UploadUrl = "$ServerUrl/api/agent/upload/$Hostname?filename=$fileName"
 if ([string]::IsNullOrEmpty($ServerUrl)) {
-    $UploadUrl = "https://endpoint-manager-dashboard.onrender.com/api/agent/upload/$Hostname`?filename=$fileName"
+    $UploadUrl = "https://endpoint-manager-dashboard.onrender.com/api/agent/upload/$Hostname?filename=$fileName"
 }
 
 try {
